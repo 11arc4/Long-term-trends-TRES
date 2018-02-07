@@ -14,6 +14,8 @@ datMark <- readRDS("~/Masters Thesis Project/TRES Data Analysis/Vital Rates Mode
 
 #Load in all the environmental data
 YearlyFledge <- readRDS("LocalWeather")
+YearlyFledge <- YearlyFledge %>% arrange(Year)
+
 presugar <- read.csv("file:///C:/Users/11arc/Documents/Masters Thesis Project/Environmental Datasets/Sugar Cane Acreage Available USDA survey.csv", as.is=T, na.strings =c(""))
 sugar <- presugar[,c(2, 19, 21, 23,25)]
 colnames(sugar) <- c("year", "acreCaneSeed", "tonsCaneSeed", "acreCaneSeedSugar", "acreCaneSugar")
@@ -21,8 +23,8 @@ colnames(sugar) <- c("year", "acreCaneSeed", "tonsCaneSeed", "acreCaneSeedSugar"
 sugar$acreCaneSeed[which(sugar$year>1974 & sugar$year<1997)]/10000
 sugar$acreCaneSeed[which(sugar$year>1996)]/10000
 
-
 sugar$acreCaneSeed <- as.numeric(gsub(',', '', sugar$acreCaneSeed))
+sugar <- sugar %>% filter(year>1974) %>% arrange(year)
 
 ENSOdat <- read.csv("file:///C:/Users/11arc/Documents/Masters Thesis Project/Environmental Datasets/Monthly El Nino Southern Oscillation index.csv", as.is=T)[,1:13]
 colnames(ENSOdat) <- c("Year", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
@@ -72,30 +74,114 @@ p.timeage <- list(formula= ~time + age)
 Phi.1 <- list(formula= ~ popStatus * age)
 
 Phi.2 <- list(formula= ~ SugarAcres*age + Hurricanes*age + ENSOWinter*age + DaysBelow18*age) #this has very low support
+
+
 Phi.3 <- list(formula= ~ SugarAcres*age*popStatus + Hurricanes*age*popStatus + ENSOWinter + DaysBelow18*age*popStatus)
+
 Phi.4 <- list(formula= ~ SugarAcres*age*popStatus + Hurricanes*age*popStatus  + DaysBelow18*age*popStatus)
 Phi.5 <- list(formula= ~ SugarAcres*age*popStatus +  ENSOWinter + DaysBelow18*age*popStatus)
-Phi.5 <- list(formula= ~ SugarAcres*age*popStatus +  ENSOWinter )
-Phi.6 <- list(formula= ~ SugarAcres*age*popStatus + DaysBelow18*age*popStatus)
-Phi.7 <- list(formula= ~ ENSOWinter + DaysBelow18*age*popStatus)
+Phi.9 <- list(formula= ~ SugarAcres*age*popStatus + Hurricanes*age*popStatus + ENSOWinter )
+Phi.12 <- list(formula= ~ Hurricanes*age*popStatus + ENSOWinter + DaysBelow18*age*popStatus)
 
 
-Phi.8 <- list(formula= ~ SugarAcres*age*popStatus + Hurricanes*age*popStatus + ENSOWinter )
-Phi.9 <- list(formula= ~ SugarAcres*age*popStatus + Hurricanes*age*popStatus )
-Phi.10 <- list(formula= ~ Hurricanes*age*popStatus + ENSOWinter )
 
-Phi.11 <- list(formula= ~ Hurricanes*age*popStatus + ENSOWinter + DaysBelow18*age*popStatus)
-Phi.12 <- list(formula= ~ Hurricanes*age*popStatus  + DaysBelow18*age*popStatus)
-Phi.13 <- list(formula= ~ SugarAcres*age*popStatus)
+Phi.6 <- list(formula= ~ SugarAcres*age*popStatus +  ENSOWinter )
+Phi.7 <- list(formula= ~ SugarAcres*age*popStatus + DaysBelow18*age*popStatus)
+Phi.8 <- list(formula= ~ ENSOWinter + DaysBelow18*age*popStatus)
+Phi.10 <- list(formula= ~ SugarAcres*age*popStatus + Hurricanes*age*popStatus )
+Phi.11 <- list(formula= ~ Hurricanes*age*popStatus + ENSOWinter )
+Phi.13 <- list(formula= ~ Hurricanes*age*popStatus  + DaysBelow18*age*popStatus)
+
+
+
+
 Phi.14 <- list(formula= ~ Hurricanes*age*popStatus )
 Phi.15 <- list(formula= ~  age*popStatus + ENSOWinter)
 Phi.16 <- list(formula= ~  DaysBelow18*age*popStatus)
+Phi.17 <- list(formula= ~ SugarAcres*age*popStatus)
 
 
 cml<- create.model.list("CJS")
 results <- mark.wrapper(cml, data=tsprocess, ddl=ts.ddl, output=F, adjust=F)
 
+#lets find the chat to pick based on the global model and adjust
+export.MARK(tsprocess, "FemaleNestlings_combinedfactors", results, replace=T)
+
+adjustedresults <- adjust.chat(results, chat=1.16)
+
+#I think that these results mean that sugar acreage and days below 18 have the
+#biggest impact on survival but we can't rule out the impact of ENSO in
+#particular but also hurricanes. ie they have a smallish impact but not huge
+
+
+#I suspect that the reason that we can't get rid of popStatus is that condition
+#during breeding have resulted in lower quality juveniles.
 
 
 
+#Now we should pull out the estimates for survival and plot those, ideally with
+#some indication of at least what sugar acreage and local weather was common
+#that year
+modAv<- model.average(adjustedresults)
 
+global <- adjustedresults[11]$Phi.3.p.timeage
+
+global$pims$Phi
+
+#The PIMs look just like any other model. 
+
+RecruitPIMS <- rep(NA,42)
+SYPIMS <- rep(NA,42)
+ASYPIMS <- rep(NA,42)
+
+for (i in 1:42){
+  #Group 1 is birds caught as nestlings first
+  RecruitPIMS[i]<- global$pims$Phi[[1]]$pim[i,i]
+  #group 2 is birds caught as SY first
+  SYPIMS[i] <- global$pims$Phi[[2]]$pim[i,i]
+  # group 3 is birds caught as full adults first
+  ASYPIMS[i] <- global$pims$Phi[[3]]$pim[i,i]
+}
+
+AvResults <- data.frame(Year= rep(seq(1975, 2016, 1), 3), 
+                        Age= c(rep("HY", 42), rep("SY", 42), rep("ASY", 42)),
+                        Estimate= NA, 
+                        SE=NA, 
+                        SugarAcres=rep(sugar$acreCaneSeed[1:42], 3), 
+                        DaysBelow18=rep(YearlyFledge$DaysBelow18[1:42], 3))
+
+AvResults[1:42, 3:4] <- modAv[RecruitPIMS,][2:3]
+AvResults[43:84, 3:4] <- modAv[SYPIMS,2:3]
+AvResults[85:126, 3:4] <- modAv[ASYPIMS, 2:3]
+AvResults$popStatus <- "Growing"
+AvResults$popStatus[which(AvResults$Year>1996)] <- "Declining"
+
+
+AvResults$Age <- factor(AvResults$Age, levels=c("HY", "SY", "ASY"))
+ggplot(AvResults , aes(x=Year, y=Estimate, color=Age))+
+  geom_segment(aes(x=Year, xend=Year, y=Estimate-1.96*SE, yend=Estimate+1.96*SE), color="black")+
+  geom_point(size=3)+
+  labs(x="Year", y="Survival", color="Age")+
+  scale_color_manual(labels=c("Recruitment", "1-year-old return", "Older female return"), 
+                     values=c("azure4","burlywood4", "dodgerblue4"))+
+  ggthemes::theme_few(base_size = 16)
+
+
+ggplot(AvResults , aes(x=DaysBelow18, y=Estimate, color=Age))+
+  geom_segment(aes(x=DaysBelow18, xend=DaysBelow18, y=Estimate-1.96*SE, yend=Estimate+1.96*SE), color="black")+
+  geom_point(size=3)+
+  labs(x="Days below 18", y="Survival", color="Age")+
+  scale_color_manual(labels=c("Recruitment", "1-year-old return", "Older female return"), 
+                     values=c("azure4","burlywood4", "dodgerblue4"))+
+  facet_grid(~popStatus)+
+  ggthemes::theme_few(base_size = 16)
+
+ 
+ggplot(AvResults , aes(x=SugarAcres, y=Estimate, color=Age))+
+  geom_segment(aes(x=SugarAcres, xend=SugarAcres, y=Estimate-1.96*SE, yend=Estimate+1.96*SE), color="black")+
+  geom_point(size=3)+
+  labs(x="Acres sugar cane and seed", y="Survival", color="Age")+
+  scale_color_manual(labels=c("Recruitment", "1-year-old return", "Older female return"), 
+                     values=c("azure4","burlywood4", "dodgerblue4"))+
+  facet_grid(~popStatus)+
+  ggthemes::theme_few(base_size = 16)
