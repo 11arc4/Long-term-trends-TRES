@@ -24,7 +24,6 @@ sugar$acreCaneSeed[which(sugar$year>1974 & sugar$year<1997)]/10000
 sugar$acreCaneSeed[which(sugar$year>1996)]/10000
 
 sugar$acreCaneSeed <- as.numeric(gsub(',', '', sugar$acreCaneSeed))
-sugar <- sugar %>% filter(year>1974) %>% arrange(year)
 
 ENSOdat <- read.csv("file:///C:/Users/11arc/Documents/Masters Thesis Project/Environmental Datasets/Monthly El Nino Southern Oscillation index.csv", as.is=T)[,1:13]
 colnames(ENSOdat) <- c("Year", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
@@ -125,8 +124,10 @@ adjustedresults <- adjust.chat(results, chat=1.16)
 modAv<- model.average(adjustedresults)
 
 global <- adjustedresults[11]$Phi.3.p.timeage
+global$results$beta
 
-global$pims$Phi
+
+
 
 #The PIMs look just like any other model. 
 
@@ -142,6 +143,7 @@ for (i in 1:42){
   # group 3 is birds caught as full adults first
   ASYPIMS[i] <- global$pims$Phi[[3]]$pim[i,i]
 }
+sugar <- sugar %>% filter(year>1974) %>% arrange(year)
 
 AvResults <- data.frame(Year= rep(seq(1975, 2016, 1), 3), 
                         Age= c(rep("HY", 42), rep("SY", 42), rep("ASY", 42)),
@@ -158,6 +160,7 @@ AvResults$popStatus[which(AvResults$Year>1996)] <- "Declining"
 
 
 AvResults$Age <- factor(AvResults$Age, levels=c("HY", "SY", "ASY"))
+
 ggplot(AvResults , aes(x=Year, y=Estimate, color=Age))+
   geom_segment(aes(x=Year, xend=Year, y=Estimate-1.96*SE, yend=Estimate+1.96*SE), color="black")+
   geom_point(size=3)+
@@ -184,4 +187,19 @@ ggplot(AvResults , aes(x=SugarAcres, y=Estimate, color=Age))+
   scale_color_manual(labels=c("Recruitment", "1-year-old return", "Older female return"), 
                      values=c("azure4","burlywood4", "dodgerblue4"))+
   facet_grid(~popStatus)+
+  ggthemes::theme_few(base_size = 16)
+
+
+
+
+
+Estimates <- global$results$beta[1:25,] 
+Estimates$parameter <- rownames(Estimates)
+
+
+ggplot(Estimates, aes(x=estimate, y=parameter))+
+  geom_point()+
+  geom_segment(aes(xend=lcl, x=ucl, yend=parameter))+
+  labs(x="Beta with 95% CI (logit scale)", y="")+
+  geom_vline(xintercept = 0)+
   ggthemes::theme_few(base_size = 16)
