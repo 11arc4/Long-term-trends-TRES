@@ -226,7 +226,7 @@ adjustedresults <- adjust.chat(results, chat=1.17)
 #but does depend on popStatus
 
 
-bestmod <- adjustedresults[2]$Phi.10.p.timeage
+bestmod <- adjustedresults[1]$Phi.10
 
 min1 <- min(YearlyFledge$DaysBelow18[which(YearlyFledge$Year>1974 & YearlyFledge$Year<1997)])
 max1 <- max(YearlyFledge$DaysBelow18[which(YearlyFledge$Year>1974 & YearlyFledge$Year<1997)])
@@ -244,7 +244,7 @@ newdata <- data.frame(age=c(rep(0, 25), rep(1, 25), rep(2, 25)),
                       ucl=NA)
 
 #recruitment predictions in increase
-newdata[1:25, 4:7 ] <- predict_real(bestmod,ts.ddl$Phi[1,,drop=FALSE],"Phi",replicate=TRUE,data=data.frame(DaysBelow18=seq(min1, max1, length.out = 25)))[,15:18] 
+newdata[1:25, 4:7 ] <- predict_real(bestmod,ts.ddl$Phi[1,,drop=FALSE],"Phi", replicate=TRUE,data=data.frame(DaysBelow18=seq(min1, max1, length.out = 25)))[,15:18] 
 #SY return predictions in increase
 newdata[26:50, 4:7 ] <-predict_real(bestmod,ts.ddl$Phi[2,,drop=FALSE],"Phi",replicate=TRUE,data=data.frame(DaysBelow18=seq(min1, max1, length.out = 25)))[,15:18]  
 #ASY Return predictions in increase
@@ -267,19 +267,20 @@ ggplot(newdata, aes(x=DaysBelow18, y=estimate, fill=age))+
   facet_grid(~popStatus, labeller = as_labeller(TimePeriodNames))+
   
   geom_ribbon(aes(ymin=lcl, ymax=ucl), alpha=0.2)+
-  labs(x="Mean temperature post-fledging", y="Survival overwinter", fill="Age", color="Age")+
+  labs(x=expression("Days below "*18~degree*C), y="Survival overwinter", fill="Age", color="Age")+
   scale_fill_manual(labels=c("Recruitment", "1-year-old return", "Older female return"), 
                     values=c("azure4", "burlywood4", "dodgerblue4"))+
   scale_color_manual(labels=c("Recruitment", "1-year-old return", "Older female return"), 
                      values=c("azure4","burlywood4", "dodgerblue4"))+
-  ggthemes::theme_few(base_size = 16)+
-  ylim(0,1)
+  ggthemes::theme_few(base_size = 16)
 
 ggplot(YearlyFledge %>% filter(Year != 1999 & Year != 2006 & Year != 2007), aes(x=Year, y=DaysBelow18))+
   geom_point()+
   geom_vline(xintercept=1996.5)+
-  labs(x="Year", y="Mean temperature post-fledging")+
+  labs(x="Year", y=expression("Days below "*18~degree*C))+
   ggthemes::theme_few(base_size = 16)
+
+
 
 
 
