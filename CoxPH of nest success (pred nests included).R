@@ -399,5 +399,30 @@ mam5 <- mod5_9
 
 AICc(mam1, mam2, mam3, mam4, mam5) 
 #By far the best model is mam1 which uses maximum temperature and Age to predict survival
-mam1
+summary(mam1)
+#Higher 
+
+
+#Lets make a nice plot of this. 
+#Which days were 
+YearSummary <- survdat2 %>% 
+  group_by(Year2, Time1, Age2) %>% 
+  summarise(Nests=length(Status), 
+            MaxTemp=first(MaxTemp)) %>%
+  group_by(Year2 , Age2) %>%
+  summarise(MaxTemp = weighted.mean(MaxTemp),
+            Predicted = NA, 
+            SE=NA) %>%
+  arrange(Age2)
+
+YearSummary$Predicted<- predict(mam1, newdata=YearSummary, se.fit = T,  type="risk")[[1]]
+YearSummary$SE<- predict(mam1, newdata=YearSummary, se.fit=T, type="risk")[[2]]
+
+
+
+ggplot(YearSummary, aes(x=Year2*10+1975, y=Predicted, color=Age2))+
+  geom_point()+
+  geom_segment(aes(xend=Year2*10+1975, y=Predicted-SE, yend=Predicted+SE))+
+  geom_smooth()
+
 
