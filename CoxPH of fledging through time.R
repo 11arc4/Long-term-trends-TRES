@@ -89,8 +89,8 @@ dat3$Year2 <- dat3$Year/10-197.5
 
 
 ####NOW WE NEED TO CHANGE THE FORMAT OF THIS DATA SO THAT EACH DAY HAS A ENTRY FOR THE COXPH
-survdat <-  as.data.frame(matrix(ncol=10, nrow=4000, NA)) 
-colnames(survdat) <- c("NestID", "Year", "Time2", "Time1", "Age", "Status", "MaxTemp", "MeanTemp", "MinTemp", "TotRain" )  
+survdat <-  as.data.frame(matrix(ncol=11, nrow=4000, NA)) 
+colnames(survdat) <- c("NestID", "Year", "Time2", "Time1", "Age", "Status", "MaxTemp", "MeanTemp", "MinTemp", "TotRain", "ThreeDayPeriod" )  
 
 a=0
 for (i in 1:nrow(dat3)){
@@ -124,15 +124,20 @@ weather$MaxTemp <- as.numeric(weather$MaxTemp)
 weather$MinTemp <- as.numeric(weather$MinTemp)
 weather$TotRain <- as.numeric(weather$TotRain)
 
-weather2 <- weather %>% filter(JDate>139 & JDate<216) 
+weather2 <- weather %>% filter(JDate>139-3 & JDate<216) 
 
-for(i in 1:nrow(weather2)){
+for(i in 4:nrow(weather2)){
   c <- which(survdat$Year==weather2$Year[i] & survdat$Time1==weather2$JDate[i])
+  j <- length(which(weather2$TotRain[(i-3):i-1]>0 | weather2$MaxTemp[(i-3):i-1]<18.5))
+  #J is the number of days that were either raining or never went above 18.5
+  #degrees in the 3 days prior to surveying-- this is the relevent time period and temperature cutoff for insects
+  #flying based on Winkler et al. 2013
   if(length(c)!=0){
     survdat$MaxTemp[c] <- weather2$MaxTemp[i]
     survdat$MeanTemp[c] <- weather2$MeanTemp[i]
     survdat$MinTemp[c] <- weather2$MinTemp[i]
     survdat$TotRain[c] <- weather2$TotRain[i]
+    survdat$ThreeDayPeriod[c] <- j
   }
 }
 
@@ -173,34 +178,250 @@ survdat2 <- survdat %>% filter(!is.na(TotRain) & !is.na(MeanTemp))
 survdat2$TotRain2 <- 0
 survdat2$TotRain2[survdat2$TotRain>0]<- 1 #Need to code it like this to let the model converge. 
 
-
-
+#################################
+#Does Max Temp influence survival (not counting predation related death)?
 mod1 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2*Year2*MaxTemp, data=survdat2)
-mod2 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2*Year2*MinTemp, data=survdat2)
-mod3 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2*Year2*MeanTemp, data=survdat2)
-mod4 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2*Year2*TotRain2, data=survdat2)
-mod5 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2*Year2*PC1 + Age2*Year2*PC2, data=survdat2)
+test.ph1 <- cox.zph(mod1) #fantastic! We are meeting all the assumptions
 
- 
- 
- test.ph1 <- cox.zph(mod1) #fantastic! We are meeting all the assumptions
+#Do we need the three way interaction? 
+mod1_2 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2*Year2+ Year2*MaxTemp + Age2*MaxTemp, data=survdat2)
+anova(mod1, mod1_2)
+mod1_2
+#Nope. 
+
+#Do we need Age:Year?
+mod1_3 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Year2*MaxTemp + Age2*MaxTemp, data=survdat2)
+anova(mod1_2, mod1_3)
+#Nope
+
+#DO we need Year:MaxTemp?
+mod1_4 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Year2 + Age2*MaxTemp, data=survdat2)
+anova(mod1_4, mod1_3)
+#Nope
+
+#Do we need Age*MaxTemp?
+mod1_5 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Year2 + Age2 + MaxTemp, data=survdat2)
+anova(mod1_4, mod1_5)
+#Yes!
+
+#Do we need year?
+mod1_6 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~ Age2 + MaxTemp, data=survdat2)
+anova(mod1_5, mod1_6)
+#Nope
+
+
+mam1 <- mod1_5
+
+car::Anova(mod1) #Excellent. This agrees. 
+
+
+
+#################################
+#Does Min Temp influence survival (not counting predation related death)?
+mod2 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2*Year2*MinTemp, data=survdat2)
 test.ph2 <- cox.zph(mod2) #fantastic! We are meeting all the assumptions
+
+#Do we need the 3 way interaction?
+mod2_2 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2*Year2+ Year2*MinTemp + Age2*MinTemp, data=survdat2)
+anova(mod2, mod2_2)
+#Nope
+
+#DO we need the year:age interaction?
+mod2_3 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~ Year2*MinTemp + Age2*MinTemp, data=survdat2)
+anova(mod2_3, mod2_2)
+#Nope
+
+#DO we need the Year:Temp interaction?
+mod2_4 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~ Year2 + Age2*MinTemp, data=survdat2)
+anova(mod2_3, mod2_4)
+#Nope
+
+#DO we need the Age by MinTemp interaction?
+mod2_5 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~ Year2 + Age2 + MinTemp, data=survdat2)
+anova(mod2_5, mod2_4)
+#Nope
+
+#DO we need year?
+mod2_6 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~ Age2 + MinTemp, data=survdat2)
+anova(mod2_5, mod2_6)
+#Nope
+
+#Do we need MinTemp?
+mod2_7 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~ Age2 , data=survdat2)
+anova(mod2_7, mod2_6)
+#Yes
+
+#DO we need age?
+mod2_8 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~ MinTemp, data=survdat2)
+anova(mod2_8, mod2_6)
+#Yes
+
+mam2 <- mod2_6
+
+car::Anova(mod2) #This agrees with our stepwise analysis
+
+#################################
+#Does Mean Temp influence survival (not counting predation related death)?
+mod3 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2*Year2*MeanTemp, data=survdat2)
 test.ph3 <- cox.zph(mod3) #fantastic! We are meeting all the assumptions
+
+#Do we need the 3 way interaction?
+mod3_2 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2*Year2+ Year2*MeanTemp + Age2*MeanTemp, data=survdat2)
+anova(mod3, mod3_2)
+#Nope
+
+#Do we need the year*age interaction?
+mod3_3 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~ Year2*MeanTemp + Age2*MeanTemp, data=survdat2)
+anova(mod3_2, mod3_3)
+#nope
+
+#DO we need the year:mean temp interaction?
+mod3_4 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~ Year2 + Age2*MeanTemp, data=survdat2)
+anova(mod3_3, mod3_4)
+#nope
+
+#Do we need the age:mean temp interaction?
+mod3_5 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~ Year2 + Age2 + MeanTemp, data=survdat2)
+anova(mod3_5, mod3_4)
+#Yes, 
+
+#Do we need the year term?
+
+mod3_6 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~ Age2*MeanTemp, data=survdat2)
+anova(mod3_4, mod3_6)
+#nope
+
+mam3 <- mod3_6
+
+
+car::Anova(mod3) #Agrees with out results. 
+
+#################################
+#Does rain influence survival (not counting predation related death)?
+mod4 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2*Year2*TotRain2, data=survdat2)
 test.ph4 <- cox.zph(mod4) #fantastic! We are meeting all the assumptions
+
+#do we need the 3way interaction? 
+mod4_2 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2*Year2+ Year2*TotRain2 + Age2*TotRain2, data=survdat2) 
+anova(mod4, mod4_2)
+#NOPE
+
+#Do we need age:year?
+mod4_3 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~ Year2*TotRain2 + Age2*TotRain2, data=survdat2) 
+anova(mod4_2, mod4_3)
+#Nope
+
+#Do we need Year by rain interactions?
+mod4_4 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~ Year2 + Age2*TotRain2, data=survdat2) 
+anova(mod4_3, mod4_4)
+#Nope
+
+#Do we need age:rain?
+mod4_5 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~ Year2 + Age2 + TotRain2, data=survdat2) 
+anova(mod4_4, mod4_5)
+#nope
+
+#DO we need year?
+mod4_6 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~ Age2+ TotRain2, data=survdat2) 
+anova(mod4_5, mod4_6)
+#Nope
+
+#DO we need age?
+mod4_7 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~  TotRain2, data=survdat2)
+anova(mod4_6, mod4_7)
+#Yes
+
+#DO we need rain?
+mod4_8 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~ Age2, data=survdat2)
+anova(mod4_5, mod4_8)
+#Yes
+
+mam4 <- mod4_5
+
+car::Anova(mod4) #Agrees with us
+
+
+#################################
+#Does the combination of all weather values influence survival (not counting predation related death)?
+mod5 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2*Year2*PC1 + Age2*Year2*PC2, data=survdat2)
 test.ph5 <- cox.zph(mod5) #fantastic! We are meeting all the assumptions
+
+#DO we need the interaction Age:year:PC2?
+mod5_2 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2*Year2*PC1 + Year2*PC2 + Age2*PC2, data=survdat2)
+anova(mod5, mod5_2)
+#Nope
+
+#DO we need the interaction Age:year:PC1?
+mod5_3 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2*Year2+ Year2*PC1+ Age2*PC1 + Year2*PC2 + Age2*PC2, data=survdat2)
+anova(mod5_3, mod5_2)
+#Nope 
+
+#DO we need age:year?
+mod5_4 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~ Year2*PC1+ Age2*PC1 + Year2*PC2 + Age2*PC2, data=survdat2)
+anova(mod5_3, mod5_4)
+#Nope
+
+#DO we need Year:PC2?
+mod5_5 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~ Year2*PC1+ Age2*PC1 + Age2*PC2, data=survdat2)
+anova(mod5_4, mod5_5)
+#Nope
+
+#DO we need Year:PC1
+mod5_6 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~ Year2 + Age2*PC1 + Age2*PC2, data=survdat2)
+anova(mod5_5, mod5_6)
+#Nope
+
+
+#Do we need age:pc2?
+mod5_7 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~ Year2 + Age2*PC1 + PC2, data=survdat2)
+anova(mod5_6, mod5_7)
+#nope
+
+#Do we need PC2?
+mod5_8 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~ Year2 + Age2*PC1 , data=survdat2)
+anova(mod5_7, mod5_8)
+#Nope
+
+
+#Do we need Age:PC1?
+mod5_9 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~ Year2 + Age2 + PC1 , data=survdat2)
+#it's really damn close. 
+anova(mod5_9, mod5_8)
+#it's close but we're going with yes
+
+
+#Do we need year?
+mod5_10 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~ Age2*PC1 , data=survdat2)
+anova(mod5_8, mod5_10)
+#Nope
+
+mam5 <- mod5_10
+
+
+
+car::Anova(mod5) #Agrees with us
+
+
+
+
+AICc(mam1, mam2, mam3, mam4, mam5)
+#mam1 (max temp) is easily the best model we have. 
+mam1
+
 
 
 options(na.action = "na.fail") 
 
-dredge(mod1)
+dredge1 <- dredge(mod1)
 dredge(mod2)
 dredge(mod3)
 dredge(mod4)
-dredge5 <- dredge(mod5) #using PCs is DEFINITELY the best tactic. It's not even funny how 
+dredge5 <- dredge(mod5) 
+#Using max temp is the best tactic
 
 
 #I'll model average the best models with delta less than 2
-avmod <- model.avg(subset(dredge5, delta <= 2, recalc.weights = FALSE))
+avmod <- model.avg(subset(dredge1, delta <= 2, recalc.weights = FALSE))
 sumAv <- summary(avmod) 
 #I would prefer to use the full average estimates because they don't bias
 #parameters away from 0 (conditional average treats times when a term isn't in
@@ -209,14 +430,14 @@ sumAv <- summary(avmod)
 sumAv$coefmat.full
 
 
-mam <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2*Year2*PC1 + Age2*Year2*PC2, data=survdat2)
+mam <- mam1
 
 newdata <- data.frame(Year2 =  (as.numeric(weather2$Year)-1975)/10, 
                        Date = as.Date(weather2$Date, format="%m/%d/%Y"), 
                        Age2 = c(rep("Poikilotherm", nrow(weather2)), rep("Intermediate", nrow(weather2)), rep( "Endotherm", nrow(weather2))), 
-                       PC1 = weather2$PC1, 
-                       PC2  =weather2$PC2, 
-                      Predicted = NA)
+                       MaxTemp = weather2$MaxTemp, 
+                      Predicted = NA, 
+                      SE=NA)
 
 #Predict the Endotherms
 newdata$Predicted[6689:nrow(newdata)] <- sumAv$coefmat.full[3,1]*newdata$PC1[1:nrow(weather2)] + 
@@ -282,7 +503,12 @@ ggplot(YearPCSummary, aes(x=Year2 *10+1975, y=exp(Predicted), color=Age2))+
 
 
 
-predict(mam, newtdata=YearPCSummary, se.fit=T, type="risk")
+newdata$Predicted <- predict(mam, newdata=newdata, se.fit=T, type="risk")[1]
+newdata$SE <- predict(mam, newdata=newdata, se.fit=T, type="risk")[2]
+
+
+ggplot(newdata, aes(x=date, y=Predicted, color=Age2))+
+  geom_line()
 
 
 

@@ -400,7 +400,7 @@ mam5 <- mod5_9
 AICc(mam1, mam2, mam3, mam4, mam5) 
 #By far the best model is mam1 which uses maximum temperature and Age to predict survival
 summary(mam1)
-#Higher 
+#Higher death risks when temperature is higher. I suspect this is due to snake predation. 
 
 
 #Lets make a nice plot of this. 
@@ -426,3 +426,16 @@ ggplot(YearSummary, aes(x=Year2*10+1975, y=Predicted, color=Age2))+
   geom_smooth()
 
 
+
+
+
+#What about if I just dredge everything? 
+
+
+options(na.action = "na.fail") 
+
+dredge(mod1)
+dredge(mod2)4
+dredge(mod3)
+dredge(mod4)
+dredge(mod5)
