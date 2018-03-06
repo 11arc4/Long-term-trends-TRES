@@ -128,7 +128,7 @@ weather2 <- weather %>% filter(JDate>139-3 & JDate<216)
 
 for(i in 4:nrow(weather2)){
   c <- which(survdat$Year==weather2$Year[i] & survdat$Time1==weather2$JDate[i])
-  j <- length(which(weather2$TotRain[(i-3):i-1]>0 | weather2$MaxTemp[(i-3):i-1]<18.5))
+  j <- length(which(weather2$TotRain[(i-2):i]>0 | weather2$MaxTemp[(i-2):i]<18.5))
   #J is the number of days that were either raining or never went above 18.5
   #degrees in the 3 days prior to surveying-- this is the relevent time period and temperature cutoff for insects
   #flying based on Winkler et al. 2013
@@ -178,6 +178,8 @@ survdat2 <- survdat %>% filter(!is.na(TotRain) & !is.na(MeanTemp))
 survdat2$TotRain2 <- 0
 survdat2$TotRain2[survdat2$TotRain>0]<- 1 #Need to code it like this to let the model converge. 
 
+survdat2$CenteredMaxTemp <- survdat2$MaxTemp-mean(weather2$MaxTemp, na.rm = T)
+
 #################################
 #Does Max Temp influence survival (not counting predation related death)?
 mod1 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2*Year2*MaxTemp, data=survdat2)
@@ -205,14 +207,26 @@ anova(mod1_4, mod1_5)
 #Yes!
 
 #Do we need year?
-mod1_6 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~ Age2 + MaxTemp, data=survdat2)
-anova(mod1_5, mod1_6)
+mod1_6 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~ Age2*MaxTemp, data=survdat2)
+anova(mod1_4, mod1_6)
 #Nope
 
 
-mam1 <- mod1_5
+mam1 <- mod1_6
 
 car::Anova(mod1) #Excellent. This agrees. 
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -404,7 +418,53 @@ car::Anova(mod5) #Agrees with us
 
 
 
-AICc(mam1, mam2, mam3, mam4, mam5)
+
+
+###################################
+#Does the 3 days prior cold snap make a difference to survival? 
+mod6 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~ Age2*Year2*ThreeDayPeriod , data=survdat2)
+test.ph6 <- cox.zph(mod6) #fantastic! We are meeting all the assumptions
+
+#Do we need the 3 way interaction? 
+mod6_2 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~ Age2*Year2+ Year2*ThreeDayPeriod + Age2*ThreeDayPeriod , data=survdat2)
+anova(mod6, mod6_2)
+#nope not at all
+
+#Do we need Year by age? 
+mod6_3 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~ Year2*ThreeDayPeriod + Age2*ThreeDayPeriod , data=survdat2)
+anova(mod6_2, mod6_3)
+#Nope
+
+#DO we need Year:Three|DayPeriod?
+mod6_4 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~ Year2 + Age2*ThreeDayPeriod , data=survdat2)
+anova(mod6_3, mod6_4)
+#nope
+
+#Do we need Age:ThreeDayPeriod?
+mod6_5 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~ Year2 + Age2 + ThreeDayPeriod , data=survdat2)
+anova(mod6_4, mod6_5)
+#Nope
+
+
+#Do we need Year? 
+mod6_6 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~ Age2 + ThreeDayPeriod , data=survdat2)
+anova(mod6_6, mod6_5)
+#Nope
+
+#Do we need Age? 
+mod6_7 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~ ThreeDayPeriod , data=survdat2)
+anova(mod6_6, mod6_7)
+#Yes
+
+#Do we need ThreeDayPeriod?
+mod6_8 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~ Age2 , data=survdat2)
+anova(mod6_6, mod6_8)
+#Yes
+
+mam6 <- mod6_6
+car::Anova(mod6)
+
+AICc(mam1, mam2, mam3, mam4, mam5, mam6)
 #mam1 (max temp) is easily the best model we have. 
 mam1
 
