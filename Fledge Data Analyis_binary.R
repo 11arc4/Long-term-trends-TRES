@@ -43,7 +43,11 @@ dat$FailureCause2[dat$FailureCause=="COMPETITION, FEMALE DIED" |
 
 dat$FailureCause2[which(!is.na(dat$FailureCause) & is.na(dat$FailureCause2))]<- "OTHER"
 
+hist(dat$FledgeRate) #HIGHLY bimodal
 
+dat$Fledge2 <- NA
+dat$Fledge2[which(dat$Fledge>0)]<- 1 
+dat$Fledge2[which(dat$Fledge==0)]<- 0
 
 
 #Let's remove the super invasive experiments
@@ -78,16 +82,7 @@ summary(dat2$Experiment)
 
 
 
-hist(dat2$FledgeRate) #HIGHLY bimodal
 
-dat2$Fledge2 <- NA
-dat2$Fledge2[which(dat2$Fledge>0)]<- 1 
-dat2$Fledge2[which(dat2$Fledge==0)]<- 0
-
-#Let's remove the predation caused failures. 
-dat3 <- dat2 %>% filter( !is.na(Fledge2) & !is.na(Hatch) & (FailureCause2!="PREDATION" |is.na(FailureCause2)) )
-#let's rescale year so that we are actualy looking at decades sice 1975
-dat3$Year2 <- dat3$Year/10-197.5
 
 
 
@@ -125,36 +120,75 @@ calculateDaysabove18 <- function(HatchDate, Year){
 
 
 
-for (i in 1:nrow(dat3)){
-  dat3$Daysabove18[i]<- calculateDaysabove18(HatchDate = dat3$HatchDate[i], Year=dat3$Year[i])
+for (i in 1:nrow(NoPred)){
+  dat2$Daysabove18[i]<- calculateDaysabove18(HatchDate = dat2$HatchDate[i], Year=dat2$Year[i])
 }
 
+dat2$Year2 <- dat2$Year/10-197.5
 
 #Now we have some weather data that we could use to do a binary glm
 
+#Question 1: Are nestlings fledging less often in later years ? 
+ggplot(dat2 %>% filter(Fledge/Hatch<=1), aes(x=Year, y=Fledge/Hatch))+
+  geom_point(alpha=0.2)+
+  stat_smooth()+
+  geom_vline(xintercept=c(1996, 2015))+
+  labs(y="Fledge Rate")
 
-#Question: Is nestling death (excluding death due to predation) more common in
-#bad weather, AND, are they surviving worse over the years?
-dat4 <- dat3 %>% filter(Hatch>0 & !is.na(Daysabove18))
 
-mod <- glm(Fledge2 ~ Year2*Hatch*Daysabove18, family=binomial, data=dat4)
+ggplot(dat %>% filter(Fledge/Hatch<=1), aes(x=Year, y=Fledge/Hatch))+
+  geom_point(alpha=0.2)+
+  stat_smooth()+
+  geom_vline(xintercept=c(1996, 2015))+
+  labs(y="Fledge Rate")
+
+ggplot(dat2 %>% filter(Fledge/Hatch<=1), aes(x=Year, y=Fledge2))+
+  geom_point(alpha=0.2)+
+  stat_smooth()+
+  geom_vline(xintercept=c(1996, 2014))+
+  labs(y="Fledge Rate")
+#I guess you see the same thing, It's just slighly less dramatic. It does look
+#like it might be staged though, with different time periods of growth and
+#decline, or at least a 3rd order polynomial
+
+#Let me set up time periods. 
+
+dat2$TimePeriod <- NA
+dat2$TimePeriod[which(dat2$Year<1997)]<- "Growing"
+dat2$TimePeriod[which(dat2$Year>1996)]<- "Declining"
+dat2$TimePeriod[which(dat2$Year>2013)]<- "PostDecline"
+dat2$TimePeriod <- factor(dat2$TimePeriod, levels=c("Growing", "Declining", "PostDecline"))
+
+ggplot(dat2, aes(x=Year, y=Fledge2, group=TimePeriod))+
+  geom_point(alpha=0.2)+
+  stat_smooth(method="lm")+
+  geom_vline(xintercept=c(1996, 2014))+
+  labs(y="Fledge Rate")
+
+
+
+mod <- glm(Fledge2 ~ Year2*TimePeriod, family=binomial, data=dat2)
 plot(mod)
-plot(resid(mod)~predict(mod))
-plot(resid(mod)~dat4$Year2)
-plot(resid(mod)~dat4$Hatch)
-plot(resid(mod)~dat4$Daysabove18)
-#This looks like it fits ok. I'm pleased. 
+hist(resid(mod))
+plot(resid(mod)~dat2$Year2)
+plot(resid(mod)~dat2$Hatch) 
+#Model fits better if we don't put hatch size into it.... Plus side is that
+#there are no trends with hatch size when it's not included so probably not
+#problematic.
+plot(resid(mod)~dat2$TimePeriod)
+#Model only fits if Hatch size isn't included. That's ok with me!
 
 car::Anova(mod)
 
+options(na.action="na.fail")
+dredge(mod) #need all terms. 
+
 summary(mod)
 
-dat4$predicted <- predict(mod)
+#Yes! This is fantastic. It finally looks like our data is 
 
-
-newdata <- data.frame(Year2=rep(seq(0, 4.2, 0.1),4), 
-                      Hatch=c(rep(3,43), rep(6, 43)), 
-                      Daysabove18=c(rep(2, 86), rep(5, 86)), 
+newdata <- data.frame(Year2=rep(seq(0, 4.2, 0.1)),
+                      TimePeriod=c(rep("Growing", 22), rep("Declining", 17), rep("PostDecline", 4)),
                       predicted_logit=NA,
                       predicted=NA, 
                       se_logit=NA,
@@ -169,14 +203,113 @@ newdata$predicted <- arm::invlogit(newdata$predicted_logit)
 newdata$ucl <- arm::invlogit(newdata$predicted_logit+ 1.96*(newdata$se_logit))
 newdata$lcl <- arm::invlogit(newdata$predicted_logit- 1.96*(newdata$se_logit))
 
-newdata$Daysabove18 <- factor(newdata$Daysabove18, labels=c("Poor weather", "Good weather"))
-ggplot(newdata, aes(x=Year2*10+1975, y=predicted, fill=factor(Hatch)))+
-  geom_line(aes(color=factor(Hatch)))+
-  geom_ribbon(aes(ymin=ucl, ymax=lcl), alpha=0.3)+
-  facet_grid(~factor(Daysabove18))+
-  labs(x="Year", y="Likelihood of fledging", fill="Hatch Size", color="Hatch Size")+
-  ggthemes::theme_few()
+ggplot(newdata, aes(y=predicted, x=Year2, group=TimePeriod))+
+  geom_line()+
+  geom_ribbon(aes(ymin=lcl, ymax=ucl),alpha=0.2)+
+  ylim(0, 1)+
+  labs(y="Fledging Success", x="Year")
 
 
 
 
+
+#Question: Is nest failure (excluding death due to predation) more common in
+#bad weather, AND, are they surviving worse over the years?
+
+
+NoPred2 <- NoPred %>% filter(Hatch>0 & !is.na(Daysabove18))
+Pred2 <- dat2 %>% filter(!is.na(Daysabove18))
+daysMod <- glm(Fledge2 ~ Year2*TimePeriod + TimePeriod*Daysabove18, family=binomial, data=Pred2)
+plot(daysMod)
+plot(resid(daysMod)~predict(daysMod))
+plot(resid(daysMod)~Pred2$Year2)
+plot(resid(daysMod)~Pred2$TimePeriod)
+plot(resid(daysMod)~Pred2$Daysabove18)
+#This looks like it fits ok. I'm pleased. 
+
+car::Anova(daysMod)
+dredge(daysMod)
+
+mamPred_Days <- glm(Fledge2 ~ Year2*TimePeriod + Daysabove18, family=binomial, data=Pred2)
+summary(mamPred_Days)
+
+
+YearSummary <- Pred2 %>% 
+  group_by(Year2) %>% 
+  summarise(Daysabove18 = mean(Daysabove18),
+            predicted_logit = NA, 
+            predicted =NA,
+            TimePeriod=NA,
+            ucl=NA, 
+            lcl=NA, 
+            se_logit=NA, 
+            NPpredicted_logit = NA, 
+            NPpredicted =NA,
+            TimePeriod=NA,
+            NPucl=NA, 
+            NPlcl=NA, 
+            NPse_logit=NA) 
+YearSummary$TimePeriod <- as.factor(c(rep("Growing", 22), rep("Declining", 16), rep("PostDecline", 4)))
+
+
+YearSummary$predicted_logit <- predict(mamPred_Days, YearSummary, se.fit = T)$fit
+YearSummary$se_logit <- predict(mamPred_Days, YearSummary, se.fit = T)$se.fit
+
+YearSummary$predicted <- arm::invlogit(YearSummary$predicted_logit)
+YearSummary$ucl <- arm::invlogit(YearSummary$predicted_logit+ 1.96*(YearSummary$se_logit))
+YearSummary$lcl <- arm::invlogit(YearSummary$predicted_logit- 1.96*(YearSummary$se_logit))
+
+
+
+ggplot(YearSummary, aes(y=predicted, x=Year2, group=TimePeriod))+
+  geom_point()+
+  geom_ribbon(aes(ymin=lcl, ymax=ucl),alpha=0.2)+
+  ylim(0, 1)+
+  labs(y="Fledging Success", x="Year")
+
+ggplot(YearSummary, aes(y=Daysabove18, x=Year2, color=TimePeriod))+
+  geom_point()+
+  stat_smooth(method="lm")+
+  labs(y="Mean days above 18.5", x="Year")
+
+
+
+
+
+#######Are nest failures NOT due to predadtion increasing at different rates?
+
+#Let's remove the predation caused failures. 
+NoPred <- dat2 %>% filter( !is.na(Fledge2) & (FailureCause2!="PREDATION" |is.na(FailureCause2)) & !is.na(Daysabove18) )
+
+daysMod_nopred <- glm(Fledge2 ~ Year2*TimePeriod + TimePeriod*Daysabove18, family=binomial, data=NoPred)
+
+plot(daysMod_nopred)
+plot(resid(daysMod_nopred)~predict(daysMod_nopred))
+plot(resid(daysMod_nopred)~NoPred$Year2)
+plot(resid(daysMod_nopred)~NoPred$TimePeriod)
+plot(resid(daysMod_nopred)~NoPred$Daysabove18)
+#Looks ok
+
+dredge(daysMod_nopred)
+car::Anova(daysMod_nopred)
+mamNoPred_days <-  glm(Fledge2 ~ Year2*TimePeriod + Daysabove18, family=binomial, data=NoPred)
+summary(mamNoPred_days)
+
+
+
+YearSummary$NPpredicted_logit <- predict(mamNoPred_days, YearSummary, se.fit = T)$fit
+YearSummary$NPse_logit <- predict(mamNoPred_days, YearSummary, se.fit = T)$se.fit
+
+YearSummary$NPpredicted <- arm::invlogit(YearSummary$NPpredicted_logit)
+YearSummary$NPucl <- arm::invlogit(YearSummary$NPpredicted_logit+ 1.96*(YearSummary$se_logit))
+YearSummary$NPlcl <- arm::invlogit(YearSummary$NPpredicted_logit- 1.96*(YearSummary$se_logit))
+
+
+ggplot(YearSummary, aes( x=Year2*10+1975, group=TimePeriod))+
+  geom_point(aes(y=NPpredicted), color="red")+
+  geom_point(aes(y=predicted), color="blue")+
+  geom_ribbon(aes(ymin=NPlcl, ymax=NPucl),alpha=0.2, fill="red")+
+  geom_ribbon(aes(ymin=lcl, ymax=ucl),alpha=0.2, fill="blue")+
+  ylim(0, 1)+
+  labs(y="Fledging Rate", x="Year")
+#Predation vs. no predation makes little differentce. 
