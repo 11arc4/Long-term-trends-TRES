@@ -68,3 +68,9 @@ ggplot(YearMaxTempSummary, aes(x=Year2, y=CenteredMaxTemp))+
   geom_point()+
   geom_smooth(method="lm")+
   facet_grid(~Age2)
+
+ggplot(YearMaxTempSummary, aes(x=Year2, y=Predicted))+
+  geom_point()+
+  geom_smooth(method="lm")+
+  facet_grid(~Age2)
+

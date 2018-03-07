@@ -173,6 +173,30 @@ survdat2 <- survdat %>% filter(!is.na(TotRain) & !is.na(MeanTemp))
 survdat2$TotRain2 <- 0
 survdat2$TotRain2[survdat2$TotRain>0]<- 1 #Need to code it like this to let the model converge. 
 
+
+
+###########################
+#Are hazard ratios increasing for anyone based on year? 
+mod <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2*Year2, data=survdat)
+test.ph <- cox.zph(mod) #fantastic! We are meeting all the assumptions
+plot(resid(mod)~survdat$Age2)
+plot(resid(mod)~survdat$Year2)
+plot(predict(mod)~resid(mod))
+
+
+car::Anova(mod)
+
+#Nope there's no year effect. Huh that's weird. 
+
+
+
+
+
+
+
+
+
+
 #################################################################
 ##### Analysis of MaxTemp's predictive ability for survival 
 mod1 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2*Year2*MaxTemp, data=survdat2)
