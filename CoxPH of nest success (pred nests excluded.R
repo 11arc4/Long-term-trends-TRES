@@ -1,10 +1,5 @@
-#Are nests surviving less than they used to when we include predated nests? 
+#Are nests surviving less than they used to when we exclude predated nests? 
 #a cox-proportional hazards model
-library(survival)
-
-library(tidyverse)
-library(MuMIn)
-
 
 
 #Load in the nest summarized data
@@ -80,8 +75,8 @@ dat2$Fledge2 <- NA
 dat2$Fledge2[which(dat2$Fledge>0)]<- 1 
 dat2$Fledge2[which(dat2$Fledge==0)]<- 0
 
-#Let's remove only 
-dat3 <- dat2 %>% filter( !is.na(Fledge2) & !is.na(Hatch) & Hatch>0 & FledgeDate >HatchDate & !is.na(FledgeDate) & !is.na(HatchDate)  )
+#Let's remove predated nests
+dat3 <- dat2 %>% filter( !is.na(Fledge2) & !is.na(Hatch) & Hatch>0 & FledgeDate >HatchDate & !is.na(FledgeDate) & !is.na(HatchDate) & FailureCause2!="PREDATION"  )
 #let's rescale year so that we are actualy looking at decades sice 1975
 dat3$Year2 <- dat3$Year/10-197.5
 
@@ -185,12 +180,9 @@ survdat2$TotRain2 <- 0
 survdat2$TotRain2[survdat2$TotRain>0]<- 1 #Need to code it like this to let the model converge. 
 
 
-
-
-###########################
-#Are hazard ratios increasing for anyone based on year? 
 mod <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2*Year2*TimePeriod, data=survdat)
 test.ph <- cox.zph(mod) #fantastic! We are meeting all the assumptions
+plot(test.ph) #This looks good
 plot(resid(mod)~survdat$Age2)
 plot(resid(mod)~survdat$Year2)
 plot(resid(mod)~survdat$TimePeriod)
@@ -208,137 +200,30 @@ newdata <- data.frame(Year2=rep(seq(0, 4.2, 0.1), 3),
                       Age2 = c(rep("Poikilotherm", 43), rep("Intermediate", 43), rep("Endotherm", 43)), 
                       predicted=NA, 
                       se=NA,
-                      use=NA, 
-                      lse=NA)
+                      ucl=NA, 
+                      lcl=NA)
 
 newdata$predicted<- predict(mam, newdata=newdata, se.fit = T,  type="risk")[[1]]
 newdata$se<- predict(mam, newdata=newdata, se.fit = T,  type="risk")[[2]]
 
 ggplot(newdata, aes(x=Year2*10+1975, y=predicted))+
   geom_line(aes(color=Age2), data=newdata %>% filter(TimePeriod=="Declining"))+
-  geom_ribbon(aes(ymin=predicted-se, ymax=predicted+se, fill=Age2), alpha=0.2, data=newdata %>% filter(TimePeriod=="Declining") )+
+  geom_ribbon(aes(ymin=predicted-1.96*se, ymax=predicted+1.96*se, fill=Age2), alpha=0.2, data=newdata %>% filter(TimePeriod=="Declining") )+
   geom_line(aes(color=Age2), data=newdata %>% filter(TimePeriod=="Growing"))+
-  geom_ribbon(aes(ymin=predicted-se, ymax=predicted+se, fill=Age2), alpha=0.2, data=newdata %>% filter(TimePeriod=="Growing") )+
+  geom_ribbon(aes(ymin=predicted-1.96*se, ymax=predicted+1.96*se, fill=Age2), alpha=0.2, data=newdata %>% filter(TimePeriod=="Growing") )+
   geom_line(aes(color=Age2), data=newdata %>% filter(TimePeriod=="PostDecline"))+
-  geom_ribbon(aes(ymin=predicted-se, ymax=predicted+se, fill=Age2), alpha=0.2, data=newdata %>% filter(TimePeriod=="PostDecline") )+
+  geom_ribbon(aes(ymin=predicted-1.96*se, ymax=predicted+1.96*se, fill=Age2), alpha=0.2, data=newdata %>% filter(TimePeriod=="PostDecline") )+
   geom_vline(xintercept = c(1996.5, 2013.5 ))+
   labs(x="Year", y="Mortality Risk", color="Nestling Age", fill="Nestling Age" )+ 
   ggthemes::theme_few(base_size = 16)
 
-  
-#OK this make much more sense. 
+#Based on our graph and the t values of the summary of mam
+# Mortality differences between endotherms across time aren’t statistically
+# significant (betas all aren’t different than 0). Intermediates really are
+# increasingly at risk of death during the decline. Poikilotherms became more
+# and more risky during the growth time period, but were more or less stable
+# during the decline (although higher).
 
 
 
 
-
-
-#Does differences in Max Temp make the difference? 
-mod2 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2*Year2*TimePeriod + MeanTemp*Age2, data=survdat2)
-test.ph <- cox.zph(mod) #fantastic! We are meeting all the assumptions
-plot(resid(mod2) ~ survdat2$Age2)
-plot(resid(mod2) ~ survdat2$Year2)
-plot(resid(mod2) ~ survdat2$TimePeriod)
-plot(resid(mod2) ~ survdat2$MeanTemp)
-dredge(mod2)
-
-mam_meanTemp <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2*Year2*TimePeriod + MeanTemp, data=survdat2)
-
-
-
-#Does differences in max Temp make the difference? 
-mod3 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2*Year2*TimePeriod + MaxTemp*Age2, data=survdat2)
-test.ph <- cox.zph(mod3) #fantastic! We are meeting all the assumptions
-plot(resid(mod3) ~ survdat2$Age2)
-plot(resid(mod3) ~ survdat2$Year2)
-plot(resid(mod3) ~ survdat2$TimePeriod)
-plot(resid(mod3) ~ survdat2$PC1)
-dredge(mod3)
-mam_maxtemp <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2*Year2*TimePeriod + MaxTemp, data=survdat2)
-
-
-#Does differences in min temp make the difference? 
-mod4 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2*Year2*TimePeriod + MinTemp*Age2, data=survdat2)
-test.ph <- cox.zph(mod4) #fantastic! We are meeting all the assumptions
-plot(resid(mod4) ~ survdat2$Age2)
-plot(resid(mod4) ~ survdat2$Year2)
-plot(resid(mod4) ~ survdat2$TimePeriod)
-plot(resid(mod4) ~ survdat2$MinTemp)
-dredge(mod4)
-mam_mintemp <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2*Year2*TimePeriod + MinTemp*Age2, data=survdat2)
-
-
-
-
-#Does total predicitation make the difference? I've coded it as raining or not raining--otherwise rain is not imp and violates stuff
-mod5 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2*Year2*TimePeriod + TotRain2*Age2, data=survdat2)
-test.ph <- cox.zph(mod5) #fantastic! We are meeting all the assumptions
-plot(resid(mod5) ~ survdat2$Age2)
-plot(resid(mod5) ~ survdat2$Year2)
-plot(resid(mod5) ~ survdat2$TimePeriod)
-plot(resid(mod5) ~ survdat2$TotRain2)
-dredge(mod5)
-
-mam_rain <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2*Year2*TimePeriod + TotRain2, data=survdat2)
-
-
-
-#Do all the weather parameters matter more than a single one? 
-mod6 <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2*Year2*TimePeriod + PC1*Age2 + PC2*Age2, data=survdat2)
-test.ph <- cox.zph(mod6) #fantastic! We are meeting all the assumptions
-plot(resid(mod6) ~ survdat2$Age2)
-plot(resid(mod6) ~ survdat2$Year2)
-plot(resid(mod6) ~ survdat2$TimePeriod)
-plot(resid(mod6) ~ survdat2$PC1)
-plot(resid(mod6) ~ survdat2$PC2)
-
-dredge(mod6)
-
-mam_PC <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2*Year2*TimePeriod + PC1, data=survdat2)
-
-mam
-
-
-AICc(mam_maxtemp, mam_meanTemp, mam_mintemp, mam_PC, mam_rain)
-
- mam_maxtemp
-
-
-
-YearSummary <- survdat2 %>% 
-  group_by(Year2, Age2) %>% 
-  summarise(MaxTemp = mean(MaxTemp),
-            sdMaxTemp = sd(MaxTemp),
-            predicted_logit = NA, 
-            predicted =NA,
-            TimePeriod=NA,
-            Predicted=NA,
-            TimePeriod=NA
-            ) 
-YearSummary$TimePeriod <- as.factor(c(rep("Growing", 22), rep("Declining", 15), rep("PostDecline", 4)))
-YearSummary$Year <- YearSummary$Year2 * 10 +1975
-YearSummary$Predicted <- predict(mam, newdata=YearSummary)
-
-ggplot(YearSummary, aes(x=Year, y=Predicted, color=Age2))+
-  geom_point()+
-  #geom_smooth(se=F)+
-  labs(x="Year", y="Mortality Risk", color="Nestling Age", fill="Nestling Age" )+
-  facet_grid(Age2~.)+
-  geom_vline(xintercept = c(1996.5, 2013.5 ))
-
-ggplot(YearSummary, aes(x=Year, y=MaxTemp, color=Age2))+
-  geom_point()+
-  geom_smooth(se=F)+
-  labs(x="Year", y="Median Maximum Temperature", color="Nestling Age", fill="Nestling Age" )+
-  facet_grid(Age2~.)+
-  geom_vline(xintercept = c(1996.5, 2013.5 ))
-
-ggplot(YearSummary, aes(x=MaxTemp, y=Predicted))+
-  geom_point(aes(color=TimePeriod))+
-  geom_smooth(se=F)+
-  labs(x="Maximum Temperature", y="Mortality Risk", color="Year" )+
-  facet_grid(Age2~.)
-
-#Looks like max temperature has had a lot more influence on mortality since the
-#decline started. Max temp didn't used to affect nesltings as much. I think that
-#probably is driven by nestling condition, which has also decclined overtime. 

@@ -99,7 +99,7 @@ weather$MaxTemp <- as.numeric(weather$MaxTemp)
 
 
 #I'm going to calculate how many days were above 18 degrees during the
-#poikilothermic time (ie for the first 6 days of life) since we know that's when
+#poikilothermic & intermediate time (ie for the first 6 days of life) since we know that's when
 #most of the death occurs
 
 
@@ -108,7 +108,7 @@ calculateDaysabove18 <- function(HatchDate, Year){
   if(is.na(HatchDate)){
     return(NA)
   }
-  weatherPoik <- weather[which(Year==weather$Year & weather$JDate>=HatchDate & weather$JDate<(HatchDate+7)),c(3, 8)]
+  weatherPoik <- weather[which(Year==weather$Year & weather$JDate>=HatchDate & weather$JDate<(HatchDate+9)),c(3, 8)]
   if (anyNA(weatherPoik)){
     #if we are missing data for any of the days, then we'll just return NA
     return(NA)
@@ -120,7 +120,7 @@ calculateDaysabove18 <- function(HatchDate, Year){
 
 
 
-for (i in 1:nrow(NoPred)){
+for (i in 1:nrow(dat2)){
   dat2$Daysabove18[i]<- calculateDaysabove18(HatchDate = dat2$HatchDate[i], Year=dat2$Year[i])
 }
 
@@ -142,7 +142,7 @@ ggplot(dat %>% filter(Fledge/Hatch<=1), aes(x=Year, y=Fledge/Hatch))+
   geom_vline(xintercept=c(1996, 2015))+
   labs(y="Fledge Rate")
 
-ggplot(dat2 %>% filter(Fledge/Hatch<=1), aes(x=Year, y=Fledge2))+
+ggplot(Pred2, aes(x=Year, y=Fledge2))+
   geom_point(alpha=0.2)+
   stat_smooth()+
   geom_vline(xintercept=c(1996, 2014))+
@@ -192,22 +192,24 @@ newdata <- data.frame(Year2=rep(seq(0, 4.2, 0.1)),
                       predicted_logit=NA,
                       predicted=NA, 
                       se_logit=NA,
-                      ucl=NA, 
-                      lcl=NA)
+                      use=NA, 
+                      lse=NA)
 
 
 newdata$predicted_logit <- predict(mod, newdata, se.fit = T)$fit
 newdata$se_logit <- predict(mod, newdata, se.fit = T)$se.fit
 
 newdata$predicted <- arm::invlogit(newdata$predicted_logit)
-newdata$ucl <- arm::invlogit(newdata$predicted_logit+ 1.96*(newdata$se_logit))
-newdata$lcl <- arm::invlogit(newdata$predicted_logit- 1.96*(newdata$se_logit))
+newdata$use <- arm::invlogit(newdata$predicted_logit+ (newdata$se_logit))
+newdata$lse <- arm::invlogit(newdata$predicted_logit- (newdata$se_logit))
 
-ggplot(newdata, aes(y=predicted, x=Year2, group=TimePeriod))+
+ggplot(newdata, aes(y=predicted, x=Year2*10+1975, group=TimePeriod))+
   geom_line()+
   geom_ribbon(aes(ymin=lcl, ymax=ucl),alpha=0.2)+
   ylim(0, 1)+
-  labs(y="Fledging Success", x="Year")
+  labs(y="Fledging Success", x="Year")+
+  geom_vline(xintercept = c(1996.5, 2013.5 ))+
+  ggthemes::theme_few(base_size = 16)
 
 
 
@@ -215,24 +217,38 @@ ggplot(newdata, aes(y=predicted, x=Year2, group=TimePeriod))+
 
 #Question: Is nest failure (excluding death due to predation) more common in
 #bad weather, AND, are they surviving worse over the years?
-
-
 NoPred2 <- NoPred %>% filter(Hatch>0 & !is.na(Daysabove18))
 Pred2 <- dat2 %>% filter(!is.na(Daysabove18))
-daysMod <- glm(Fledge2 ~ Year2*TimePeriod + TimePeriod*Daysabove18, family=binomial, data=Pred2)
+
+mod_pred <- glm(Fledge2 ~ TimePeriod*Year2, family=binomial, data=Pred2)
+dredge(mod_pred)
+
+mod_pred <- glm(Fledge2 ~ TimePeriod*Daysabove18, family=binomial, data=Pred2)
+
+
+daysMod <- glm(Fledge2 ~ TimePeriod*Daysabove18 + TimePeriod*Year2 , family=binomial, data=Pred2)
 plot(daysMod)
 plot(resid(daysMod)~predict(daysMod))
-plot(resid(daysMod)~Pred2$Year2)
+plot(resid(daysMod)~Pred2$Year2) #This isn't ideal
 plot(resid(daysMod)~Pred2$TimePeriod)
 plot(resid(daysMod)~Pred2$Daysabove18)
 #This looks like it fits ok. I'm pleased. 
 
 car::Anova(daysMod)
+options(na.action = "na.fail")
 dredge(daysMod)
 
-mamPred_Days <- glm(Fledge2 ~ Year2*TimePeriod + Daysabove18, family=binomial, data=Pred2)
+
+
+mamPred_Days <- daysMod
 summary(mamPred_Days)
 
+AICc(mod_pred)
+AICc(mamPred_Days)
+
+#OK so using year is a lot better-- Year is clearly still accounting for
+#something that days above 18 can't. Not sure what that is. Still, Days above 18
+#is well supported
 
 YearSummary <- Pred2 %>% 
   group_by(Year2) %>% 
@@ -252,20 +268,21 @@ YearSummary <- Pred2 %>%
 YearSummary$TimePeriod <- as.factor(c(rep("Growing", 22), rep("Declining", 16), rep("PostDecline", 4)))
 
 
-YearSummary$predicted_logit <- predict(mamPred_Days, YearSummary, se.fit = T)$fit
-YearSummary$se_logit <- predict(mamPred_Days, YearSummary, se.fit = T)$se.fit
+YearSummary$predicted_logit <- predict(daysMod, YearSummary, se.fit = T)$fit
+YearSummary$se_logit <- predict(daysMod, YearSummary, se.fit = T)$se.fit
 
 YearSummary$predicted <- arm::invlogit(YearSummary$predicted_logit)
-YearSummary$ucl <- arm::invlogit(YearSummary$predicted_logit+ 1.96*(YearSummary$se_logit))
-YearSummary$lcl <- arm::invlogit(YearSummary$predicted_logit- 1.96*(YearSummary$se_logit))
+YearSummary$use <- arm::invlogit(YearSummary$predicted_logit+ (YearSummary$se_logit))
+YearSummary$lse <- arm::invlogit(YearSummary$predicted_logit- (YearSummary$se_logit))
 
 
 
-ggplot(YearSummary, aes(y=predicted, x=Year2, group=TimePeriod))+
+ggplot(YearSummary, aes(y=predicted, x=Year2))+
   geom_point()+
-  geom_ribbon(aes(ymin=lcl, ymax=ucl),alpha=0.2)+
-  ylim(0, 1)+
+  geom_segment(aes(y=lse, yend=use, x=Year2, xend=Year2),alpha=0.2)+
+  geom_smooth()+
   labs(y="Fledging Success", x="Year")
+
 
 ggplot(YearSummary, aes(y=Daysabove18, x=Year2, color=TimePeriod))+
   geom_point()+
@@ -280,6 +297,39 @@ ggplot(YearSummary, aes(y=Daysabove18, x=Year2, color=TimePeriod))+
 
 #Let's remove the predation caused failures. 
 NoPred <- dat2 %>% filter( !is.na(Fledge2) & (FailureCause2!="PREDATION" |is.na(FailureCause2)) & !is.na(Daysabove18) )
+
+
+
+nopredMod <- glm(Fledge2 ~ Year2*TimePeriod, family=binomial, data=NoPred)
+plot(nopredMod)
+plot(resid(nopredMod)~NoPred$Year2)
+plot(resid(nopredMod)~NoPred$TimePeriod) #Better at growin but I think this is a amount of data thing. 
+summary(nopredMod)
+
+newdata2 <- data.frame(Year2=rep(seq(0, 4.2, 0.1)),
+                      TimePeriod=c(rep("Growing", 22), rep("Declining", 17), rep("PostDecline", 4)),
+                      predicted_logit=NA,
+                      predicted=NA, 
+                      se_logit=NA,
+                      use=NA, 
+                      lse=NA)
+
+
+newdata2$predicted_logit <- predict(nopredMod, newdata2, se.fit = T)$fit
+newdata2$se_logit <- predict(nopredMod, newdata2, se.fit = T)$se.fit
+
+newdata2$predicted <- arm::invlogit(newdata2$predicted_logit)
+newdata2$use <- arm::invlogit(newdata2$predicted_logit+ (newdata2$se_logit))
+newdata2$lse <- arm::invlogit(newdata2$predicted_logit- (newdata2$se_logit))
+
+ggplot(newdata2, aes(y=predicted, x=Year2*10+1975, group=TimePeriod))+
+  geom_line()+
+  geom_ribbon(aes(ymin=lse, ymax=use),alpha=0.2)+
+  ylim(0, 1)+
+  labs(y="Fledging Success", x="Year")+
+  geom_vline(xintercept = c(1996.5, 2013.5 ))+
+  ggthemes::theme_few(base_size = 16)
+
 
 daysMod_nopred <- glm(Fledge2 ~ Year2*TimePeriod + TimePeriod*Daysabove18, family=binomial, data=NoPred)
 
@@ -305,7 +355,7 @@ YearSummary$NPucl <- arm::invlogit(YearSummary$NPpredicted_logit+ 1.96*(YearSumm
 YearSummary$NPlcl <- arm::invlogit(YearSummary$NPpredicted_logit- 1.96*(YearSummary$se_logit))
 
 
-ggplot(YearSummary, aes( x=Year2*10+1975, group=TimePeriod))+
+ggplot(YearSummary, aes( x=Year2*10+1975), group=TimePeriod)+
   geom_point(aes(y=NPpredicted), color="red")+
   geom_point(aes(y=predicted), color="blue")+
   geom_ribbon(aes(ymin=NPlcl, ymax=NPucl),alpha=0.2, fill="red")+
