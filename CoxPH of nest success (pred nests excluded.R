@@ -1,191 +1,132 @@
 #Are nests surviving less than they used to when we exclude predated nests? 
 #a cox-proportional hazards model
 
-
-#Load in the nest summarized data
-dat <- read.csv("file:///C:/Users/11arc/Documents/Masters Thesis Project/TRES Data Analysis/Extracted Statistics/Fledge Rate Analysis Data.csv", as.is=T, na.strings=c(""))
-#Let's set female age to either SY or ASY. 
-dat$FAge <- as.factor(dat$FAge)
-levels(dat$FAge)
-
-dat$FAge[which(dat$FAge=="HY")] <- NA #this has to be wrong!
-dat$FAge2<- dat$FAge
-dat$FAge2[which(dat$FAge!="SY" & !is.na(dat$FAge))]<- "ASY"
-
-#What has happened over time? Are birds dying for different reasons
-dat$FailureCause2 <- NA
-dat$FailureCause2[dat$FailureCause=="PREDATION" |
-                    dat$FailureCause=="PREDATION" |
-                    dat$FailureCause=="PREDATION?" |
-                    dat$FailureCause=="EGGS DEPREDATED"] <- "PREDATION"
-
-dat$FailureCause2[dat$FailureCause=="NESTLINGS DIED" |
-                    dat$FailureCause=="NESTLINGS DEAD" |
-                    dat$FailureCause=="DEAD IN NEST" |
-                    dat$FailureCause==" NESTLINGS DIED" ] <- "NESTLINGS DIED"
-
-dat$FailureCause2[dat$FailureCause=="COMPETITION, FEMALE DIED" |
-                    dat$FailureCause==" INFANTICIDE" |
-                    dat$FailureCause=="COMPETITOR" |
-                    dat$FailureCause=="INTRASPECIFIC COMPETITOR INTERFERENCE"|
-                    dat$FailureCause=="COMPETITION"|
-                    dat$FailureCause=="COMPETITOR INTERFERENCE?"|
-                    dat$FailureCause=="INFANTICIDE"] <- "COMPETITOR"
-
-dat$FailureCause2[which(!is.na(dat$FailureCause) & is.na(dat$FailureCause2))]<- "OTHER"
-
-
-
-
-#Let's remove the super invasive experiments
-dat$Experiment<- as.factor(dat$Experiment)
-levels(dat$Experiment)
-#There are a lot of different names for experiments, but anything where we
-#transfered, remov[ed], add, female [remove], male remov, kill needs to be taken
-#out
-
-dat2 <- dat [which(!grepl("trans", dat$Experiment, fixed=T) &
-                     !grepl("TRANS", dat$Experiment, fixed=T) &
-                     !grepl("TREANS", dat$Experiment, fixed=T) &
-                     !grepl("REMOV", dat$Experiment, fixed=T) &
-                     !grepl("remov", dat$Experiment, fixed=T) &
-                     !grepl("ADD", dat$Experiment, fixed=T) &
-                     !grepl("add", dat$Experiment, fixed=T) &
-                     !grepl("FEMALE", dat$Experiment, fixed=T) &
-                     !grepl("female", dat$Experiment, fixed=T) &
-                     !grepl("male remo", dat$Experiment, fixed=T) &
-                     !grepl("kill", dat$Experiment, fixed=T) &
-                     !grepl("reduction of nestlings", dat$Experiment, fixed=T) &
-                     !grepl("brood", dat$Experiment, fixed=T) 
-                   
-), ] %>% filter (Fledge<=Hatch)
-
-summary(dat2$Experiment)
-
-
-#OK so we've now got some data that is clearly better than our predivious
-#data!!! It removes all the nests that were heavily manipulated and therefore
-#not really worth our time
-
-
-
-hist(dat2$FledgeRate) #HIGHLY bimodal
-
-dat2$Fledge2 <- NA
-dat2$Fledge2[which(dat2$Fledge>0)]<- 1 
-dat2$Fledge2[which(dat2$Fledge==0)]<- 0
-
-#Let's remove predated nests
-dat3 <- dat2 %>% filter( !is.na(Fledge2) & !is.na(Hatch) & Hatch>0 & FledgeDate >HatchDate & !is.na(FledgeDate) & !is.na(HatchDate) & FailureCause2!="PREDATION"  )
-#let's rescale year so that we are actualy looking at decades sice 1975
-dat3$Year2 <- dat3$Year/10-197.5
-
-
-
-
-####NOW WE NEED TO CHANGE THE FORMAT OF THIS DATA SO THAT EACH DAY HAS A ENTRY FOR THE COXPH
-survdat <-  as.data.frame(matrix(ncol=11, nrow=4000, NA)) 
-colnames(survdat) <- c("NestID", "Year", "Time2", "Time1", "Age","PreStatus" ,"Status", "MaxTemp", "MeanTemp", "MinTemp", "TotRain" )  
-
-a=0
-for (i in 1:nrow(dat3)){
-  
-  temp <- data.frame(NestID=rep(dat3$NestID[i]), 
-                     Year=rep(dat3$Year[i]), 
-                     Time2=seq(dat3$HatchDate[i]+1, dat3$FledgeDate[i],1), 
-                     Time1=seq(dat3$HatchDate[i], dat3$FledgeDate[i]-1,1),
-                     Age=seq(1, dat3$FledgeDate[i]-dat3$HatchDate[i],1),
-                     PreStatus=c(rep(x=1, times=dat3$FledgeDate[i]-dat3$HatchDate[i]-1), dat3$Fledge2[i])
-  )
-  if(i==1){
-    a=1
-  } 
-  b <- nrow(temp)+a-1
-  survdat[a:b, 1:6]<- temp
-  a <- b+1
-}
-#They want a true  for dead or false not dead
-survdat$Status[which(survdat$PreStatus==1)] <- F
-survdat$Status[which(survdat$PreStatus==0)] <- T
-
-survdat$Year2 <- survdat$Year/10-197.5
-
-
-weather_pre <- read.csv("file:///C:/Users/11arc/Documents/Masters Thesis Project/Environmental Datasets/Hartington IHD Weather Station Daily Data 1975 to  2017.csv", as.is=T)
-weather <- weather_pre[26:nrow(weather_pre), c(1,2,6,8,10,12,14,16,18)]
-rm(weather_pre)
-colnames(weather) <- c("Date", "Year",  
-                       "MaxTemp", "MinTemp", "MeanTemp", "HeatDegDays", "CoolDegDays", "TotRain", "TotPrecip") 
-
-weather$JDate <- lubridate::yday(as.Date(weather$Date, format="%m/%d/%Y"))
-weather$MeanTemp <- as.numeric(weather$MeanTemp)
-weather$MaxTemp <- as.numeric(weather$MaxTemp)
-weather$MinTemp <- as.numeric(weather$MinTemp)
-weather$TotRain <- as.numeric(weather$TotRain)
-
-weather2 <- weather %>% filter(JDate>139 & JDate<216) 
-
-for(i in 1:nrow(weather2)){
-  c <- which(survdat$Year==weather2$Year[i] & survdat$Time1==weather2$JDate[i])
-  if(length(c)!=0){
-    survdat$MaxTemp[c] <- weather2$MaxTemp[i]
-    survdat$MeanTemp[c] <- weather2$MeanTemp[i]
-    survdat$MinTemp[c] <- weather2$MinTemp[i]
-    survdat$TotRain[c] <- weather2$TotRain[i]
-  }
-}
+library(survival)
+library(MuMIn)
+library(tidyverse)
+# # #Load in the nest level fledge data.
+# dat <- read.csv("file:///C:/Users/11arc/Documents/Masters Thesis Project/Long term trends paper/Data Files_long term trends/Binary Fledge Success wo experimental nests.csv", as.is=T, na.strings = "" ) %>% filter(Daysabove18 <10)
+# #
+# # #Let's remove nests without dated that we need, and the predated nests
+# NoPred <- dat %>% filter( FledgeDate >HatchDate & !is.na(FledgeDate) & !is.na(HatchDate) & (FailureCause2!="PREDATION"|is.na(FailureCause2) ) )
+# #
+# #
+# # ####NOW WE NEED TO CHANGE THE FORMAT OF THIS DATA SO THAT EACH DAY HAS A ENTRY FOR THE COXPH
+# survdatNP <-  as.data.frame(matrix(ncol=11, nrow=4000, NA))
+# colnames(survdatNP) <- c("NestID", "Year", "Time2", "Time1", "Age","PreStatus" ,"Status", "MaxTemp", "MeanTemp", "MinTemp", "TotRain" )
+# 
+# a=0
+# for (i in 1:nrow(NoPred)){
+# 
+#   temp <- data.frame(NestID=rep(NoPred$NestID[i]),
+#                      Year=rep(NoPred$Year[i]),
+#                      Time2=seq(NoPred$HatchDate[i]+1, NoPred$FledgeDate[i],1),
+#                      Time1=seq(NoPred$HatchDate[i], NoPred$FledgeDate[i]-1,1),
+#                      Age=seq(1, NoPred$FledgeDate[i]-NoPred$HatchDate[i],1),
+#                      PreStatus=c(rep(x=1, times=NoPred$FledgeDate[i]-NoPred$HatchDate[i]-1), NoPred$Fledge2[i])
+#   )
+#   if(i==1){
+#     a=1
+#   }
+#   b <- nrow(temp)+a-1
+#   survdatNP[a:b, 1:6]<- temp
+#   a <- b+1
+# }
+# # #They want a true  for dead or false not dead
+# survdatNP$Status[which(survdatNP$PreStatus==1)] <- F
+# survdatNP$Status[which(survdatNP$PreStatus==0)] <- T
+# 
+# survdatNP$Year2 <- survdatNP$Year/10-197.5
+# 
+# 
+# weather_pre <- read.csv("file:///C:/Users/11arc/Documents/Masters Thesis Project/Environmental Datasets/Hartington IHD Weather Station Daily Data 1975 to  2017.csv", as.is=T)
+# weather <- weather_pre[26:nrow(weather_pre), c(1,2,6,8,10,12,14,16,18)]
+# rm(weather_pre)
+# colnames(weather) <- c("Date", "Year",
+#                        "MaxTemp", "MinTemp", "MeanTemp", "HeatDegDays", "CoolDegDays", "TotRain", "TotPrecip")
+# 
+# weather$JDate <- lubridate::yday(as.Date(weather$Date, format="%m/%d/%Y"))
+# weather$MeanTemp <- as.numeric(weather$MeanTemp)
+# weather$MaxTemp <- as.numeric(weather$MaxTemp)
+# weather$MinTemp <- as.numeric(weather$MinTemp)
+# weather$TotRain <- as.numeric(weather$TotRain)
+# 
+# weather2 <- weather %>% filter(JDate>139 & JDate<216)
+# 
+#  for(i in 1:nrow(weather2)){
+#    c <- which(survdatNP$Year==weather2$Year[i] & survdatNP$Time1==weather2$JDate[i])
+#    if(length(c)!=0){
+#      survdatNP$MaxTemp[c] <- weather2$MaxTemp[i]
+#      survdatNP$MeanTemp[c] <- weather2$MeanTemp[i]
+#      survdatNP$MinTemp[c] <- weather2$MinTemp[i]
+#      survdatNP$TotRain[c] <- weather2$TotRain[i]
+#    }
+#  }
+# 
+# 
+# 
+# #YAY I made the data. It's ready for a coxPH analysis now.
+# #I wonder if we should use Age2 (similar to Kennedy's growth and survival
+# #analysis,  poikilothermic, intermediate, and endothermic)
+# survdatNP$Age2 <- NA
+# survdatNP$Age2[survdatNP$Age<7]<- "Poikilotherm"
+# survdatNP$Age2[survdatNP$Age>6 & survdatNP$Age<9]<- "Intermediate"
+# survdatNP$Age2[survdatNP$Age>8]<- "Endotherm"
+# survdatNP$Age2 <- factor(survdatNP$Age2, levels=c("Poikilotherm", "Intermediate", "Endotherm"))
+# 
+# 
+# library(stats)
+# weatherVar <- weather2[,c(3:5, 8)]
+# #we are going to use all the weather variables because that's what we did in the
+# #other analyses and it's important to be consistant, even thoguh the results are
+# #no different either way
+# 
+# weather.pca <- prcomp(na.omit(weatherVar), 
+#                       center=T, 
+#                       scale=T)
+# 
+# plot(weather.pca, type="lines")
+# summary(weather.pca)
+# 
+# survdatNP$PC1 <- predict(weather.pca, survdatNP[,8:11])[,1]
+# survdatNP$PC2 <- predict(weather.pca, survdatNP[,8:11])[,2]
+# 
+# 
+# weather2$PC1 <- predict(weather.pca, weather2[,c(3:5, 8)])[,1]
+# weather2$PC2 <- predict(weather.pca, weather2[,c(3:5, 8)])[,2]
+# 
+# 
+# 
+# survdatNP$TimePeriod <- NA
+# survdatNP$TimePeriod[which(survdatNP$Year<1997)]<- "Growing"
+# survdatNP$TimePeriod[which(survdatNP$Year>1996)]<- "Declining"
+# survdatNP$TimePeriod[which(survdatNP$Year>2013)]<- "PostDecline"
+# survdatNP$TimePeriod <- factor(survdatNP$TimePeriod, levels=c("Growing", "Declining", "PostDecline"))
+# 
+# survdatNP2 <- survdatNP %>% filter(!is.na(TotRain) & !is.na(MeanTemp))
+# survdatNP2$TotRain2 <- 0
+# survdatNP2$TotRain2[survdatNP2$TotRain>0]<- 1 #Need to code it like this to let the model converge. 
+# 
+# 
+# write.csv(survdatNP, file= "file:///C:/Users/11arc/Documents/Masters Thesis Project/Long term trends paper/Data Files_long term trends/CoxPH survival datas NO PREDATION.csv", na="", row.names = F)
 
 
-
-#YAY I made the data. It's ready for a coxPH analysis now.
-#I wonder if we should use Age2 (similar to Kennedy's growth and survival
-#analysis,  poikilothermic, intermediate, and endothermic)
-survdat$Age2 <- NA
-survdat$Age2[survdat$Age<7]<- "Poikilotherm"
-survdat$Age2[survdat$Age>6 & survdat$Age<9]<- "Intermediate"
-survdat$Age2[survdat$Age>8]<- "Endotherm"
-survdat$Age2 <- as.factor(survdat$Age2)
-
-
-library(stats)
-weatherVar <- weather2[,c(3:5, 8)]
-#we are going to use all the weather variables because that's what we did in the
-#other analyses and it's important to be consistant, even thoguh the results are
-#no different either way
-
-weather.pca <- prcomp(na.omit(weatherVar), 
-                      center=T, 
-                      scale=T)
-
-plot(weather.pca, type="lines")
-summary(weather.pca)
-
-survdat$PC1 <- predict(weather.pca, survdat[,8:11])[,1]
-survdat$PC2 <- predict(weather.pca, survdat[,8:11])[,2]
-
-
-weather2$PC1 <- predict(weather.pca, weather2[,c(3:5, 8)])[,1]
-weather2$PC2 <- predict(weather.pca, weather2[,c(3:5, 8)])[,2]
-
-
-
-survdat$TimePeriod <- NA
-survdat$TimePeriod[which(survdat$Year<1997)]<- "Growing"
-survdat$TimePeriod[which(survdat$Year>1996)]<- "Declining"
-survdat$TimePeriod[which(survdat$Year>2013)]<- "PostDecline"
+survdat <- read.csv("file:///C:/Users/11arc/Documents/Masters Thesis Project/Long term trends paper/Data Files_long term trends/CoxPH survival datas NO PREDATION.csv", na.strings="", as.is = T)
+survdat$Age2 <- factor(survdat$Age2, levels=c("Poikilotherm", "Intermediate", "Endotherm"))
 survdat$TimePeriod <- factor(survdat$TimePeriod, levels=c("Growing", "Declining", "PostDecline"))
 
-survdat2 <- survdat %>% filter(!is.na(TotRain) & !is.na(MeanTemp))
-survdat2$TotRain2 <- 0
-survdat2$TotRain2[survdat2$TotRain>0]<- 1 #Need to code it like this to let the model converge. 
+survdat2 <- survdat %>% filter(!is.na(MaxTemp) & !is.na(PC1))
 
 
-mod <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2*Year2*TimePeriod, data=survdat)
-test.ph <- cox.zph(mod) #fantastic! We are meeting all the assumptions
-plot(test.ph) #This looks good
-plot(resid(mod)~survdat$Age2)
-plot(resid(mod)~survdat$Year2)
-plot(resid(mod)~survdat$TimePeriod)
+###########################################
+#Question 1: Has mortality risk (with predated nests excluded) increased over time?
+
+mod <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2*Year2*TimePeriod, data=survdat2)
+test.ph <- cox.zph(mod) #Endotherms might be a problem.....
+plot(test.ph) #This looks good overall
+plot(resid(mod)~survdat2$Age2)
+plot(resid(mod)~survdat2$Year2)
+plot(resid(mod)~survdat2$TimePeriod)
 plot(predict(mod)~resid(mod))
 
 
@@ -208,14 +149,16 @@ newdata$se<- predict(mam, newdata=newdata, se.fit = T,  type="risk")[[2]]
 
 ggplot(newdata, aes(x=Year2*10+1975, y=predicted))+
   geom_line(aes(color=Age2), data=newdata %>% filter(TimePeriod=="Declining"))+
-  geom_ribbon(aes(ymin=predicted-1.96*se, ymax=predicted+1.96*se, fill=Age2), alpha=0.2, data=newdata %>% filter(TimePeriod=="Declining") )+
+  geom_ribbon(aes(ymin=predicted-se, ymax=predicted+se, fill=Age2), alpha=0.2, data=newdata %>% filter(TimePeriod=="Declining") )+
   geom_line(aes(color=Age2), data=newdata %>% filter(TimePeriod=="Growing"))+
-  geom_ribbon(aes(ymin=predicted-1.96*se, ymax=predicted+1.96*se, fill=Age2), alpha=0.2, data=newdata %>% filter(TimePeriod=="Growing") )+
+  geom_ribbon(aes(ymin=predicted-se, ymax=predicted+se, fill=Age2), alpha=0.2, data=newdata %>% filter(TimePeriod=="Growing") )+
   geom_line(aes(color=Age2), data=newdata %>% filter(TimePeriod=="PostDecline"))+
-  geom_ribbon(aes(ymin=predicted-1.96*se, ymax=predicted+1.96*se, fill=Age2), alpha=0.2, data=newdata %>% filter(TimePeriod=="PostDecline") )+
+  geom_ribbon(aes(ymin=predicted-se, ymax=predicted+se, fill=Age2), alpha=0.2, data=newdata %>% filter(TimePeriod=="PostDecline") )+
   geom_vline(xintercept = c(1996.5, 2013.5 ))+
-  labs(x="Year", y="Mortality Risk", color="Nestling Age", fill="Nestling Age" )+ 
+  labs(x="Year", y="Nest Failure Risk", color="Nestling Age", fill="Nestling Age" )+ 
   ggthemes::theme_few(base_size = 16)
+
+summary(mam)
 
 #Based on our graph and the t values of the summary of mam
 # Mortality differences between endotherms across time aren’t statistically
@@ -226,4 +169,151 @@ ggplot(newdata, aes(x=Year2*10+1975, y=predicted))+
 
 
 
+############################################
+#Question 2: Do any weather variables predict mortality risk? What are the best weather variables for predicting mortality risk?
 
+#############Max temp? 
+mod_maxtemp <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2*TimePeriod*MaxTemp, data=survdat2)
+test.ph <- cox.zph(mod_maxtemp) #all looks good
+plot(test.ph) #This looks good overall
+plot(resid(mod_maxtemp)~survdat2$Age2)
+plot(resid(mod_maxtemp)~survdat2$MaxTemp)
+plot(resid(mod_maxtemp)~survdat2$TimePeriod)
+plot(predict(mod_maxtemp)~resid(mod_maxtemp))
+
+car::Anova(mod_maxtemp)
+dredge(mod_maxtemp)
+mam_maxtemp <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2+ MaxTemp, data=survdat2)
+#higher max temp= less mortality risk
+
+############Min temp?
+mod_mintemp <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2*TimePeriod*MinTemp, data=survdat2)
+test.ph <- cox.zph(mod_mintemp) #all looks good
+plot(test.ph) #This looks good overall
+plot(resid(mod_mintemp)~survdat2$Age2)
+plot(resid(mod_mintemp)~survdat2$MaxTemp)
+plot(resid(mod_mintemp)~survdat2$TimePeriod)
+plot(predict(mod_mintemp)~resid(mod_mintemp))
+#all good
+
+car::Anova(mod_mintemp)
+dredge(mod_mintemp)
+mam_mintemp <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2* MinTemp, data=survdat2)
+#higher min temp= less mortality risk
+
+#############Mean temp?
+mod_meantemp <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2*TimePeriod*MeanTemp, data=survdat2)
+test.ph <- cox.zph(mod_meantemp) #all looks good
+plot(test.ph) #This looks good overall
+plot(resid(mod_meantemp)~survdat2$Age2)
+plot(resid(mod_meantemp)~survdat2$MeanTemp)
+plot(resid(mod_meantemp)~survdat2$TimePeriod)
+plot(predict(mod_meantemp)~resid(mod_meantemp))
+
+car::Anova(mod_meantemp)
+dredge(mod_meantemp)
+mam_meantemp <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2*MeanTemp, data=survdat2)
+#Higher mean temp = less mortality, especially for poikilotherms
+
+
+##############Tot Rain?
+mod_totrain <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2*TimePeriod*TotRain, data=survdat2)
+test.ph <- cox.zph(mod_totrain) #maybe iffy for endotherms
+plot(test.ph) #This looks OK but not great
+plot(resid(mod_totrain)~survdat2$Age2)
+plot(resid(mod_totrain)~survdat2$TotRain)
+plot(resid(mod_totrain)~survdat2$TimePeriod)
+plot(predict(mod_totrain)~resid(mod_totrain))
+#Maybe not tip top. 
+
+#what if we do Rain/NoRain
+survdat2$Rain <- 0
+survdat2$Rain[survdat2$TotRain>0]<- 1
+
+mod_rain <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2*TimePeriod*Rain, data=survdat2)
+test.ph <- cox.zph(mod_rain) #I think this is slightly better
+plot(test.ph) #much better
+plot(resid(mod_rain)~survdat2$Age2)
+plot(resid(mod_rain)~survdat2$Rain)
+plot(resid(mod_rain)~survdat2$TimePeriod)
+plot(predict(mod_rain)~resid(mod_rain))
+#I think this model fits better. 
+
+car::Anova(mod_rain)
+dredge(mod_rain)
+mam_rain <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2+ Rain, data=survdat2)
+
+##############a combination via PCs? 
+mod_PC <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2*TimePeriod*PC1 + Age2*TimePeriod*PC2, data=survdat2)
+test.ph <- cox.zph(mod_PC) #Looks good
+plot(test.ph) 
+plot(resid(mod_PC)~survdat2$Age2)
+plot(resid(mod_PC)~survdat2$PC1)
+plot(resid(mod_PC)~survdat2$PC2)
+plot(resid(mod_PC)~survdat2$TimePeriod)
+plot(predict(mod_PC)~resid(mod_PC))
+#looks like it fits
+
+car::Anova(mod_PC)
+dredge(mod_PC)
+
+mam_PC <- coxph(Surv(time=Time1, time2=Time2, event=Status)~ Age2*PC1 + PC2, data=survdat2)
+
+
+#So which of our weather variables is the best predictor? 
+
+AICc(mam_maxtemp, mam_mintemp, mam_meantemp, mam_rain, mam_PC)
+#max_temp is definitely the best. 
+AICc(mam) #Oh wow. Max temperature is actually better than year and all that at predicting nest failure
+
+
+
+newdata2 <- data.frame(MaxTemp=rep(seq(10.5, 35, length=40), 3),
+                      Age2 = c(rep("Poikilotherm", 40), rep("Intermediate", 40), rep("Endotherm", 40)), 
+                      predicted=NA, 
+                      se=NA,
+                      ucl=NA, 
+                      lcl=NA)
+
+newdata2$predicted<- predict(mam_maxtemp, newdata=newdata2, se.fit = T,  type="risk")[[1]]
+newdata2$se<- predict(mam_maxtemp, newdata=newdata2, se.fit = T,  type="risk")[[2]]
+
+ggplot(newdata2, aes(x=MaxTemp, y=predicted))+
+  geom_line(aes(color=Age2))+
+  geom_ribbon(aes(ymin=predicted-se, ymax=predicted+se, fill=Age2), alpha=0.4)+
+  labs(y="Nest Failure Risk", x="Max Temperature", fill="Nestling Age", color="Nestling Age")+
+  ggthemes::theme_few(base_size=16)
+
+
+############################
+#Question 3: Has the mean temperature experienced by nestlings during these time periods gone down? 
+
+YearSummary <- survdat2 %>% 
+  group_by(Year2, TimePeriod, Age2) %>% 
+  summarise(MeanMaxTemp=mean(MaxTemp),
+            Daysabove18_2 = NA,
+            Year=NA) 
+
+
+
+ggplot(YearSummary, aes(x=Year2*10+1975, y=MeanMaxTemp))+
+  geom_point()+
+  facet_grid(~Age2)+
+  geom_smooth(method="lm")+
+  labs(x="Year", y="Mean Maximum \nDaily Temperature")+
+  ggthemes::theme_few(base_size = 16)
+
+mod_weather <- lm(MeanMaxTemp~Year2*TimePeriod*Age2, data=YearSummary)
+hist(resid(mod_weather))
+plot(mod_weather) #fits
+plot(resid(mod_weather)~YearSummary$Year2)
+plot(resid(mod_weather)~YearSummary$TimePeriod)
+plot(resid(mod_weather)~YearSummary$Age2)
+#looks OK
+
+car::Anova(mod_weather)
+dredge(mod_weather)
+YearSummary$Year <- YearSummary$Year2*10+1975
+
+mam_weather <- lm(MeanMaxTemp~Year2+Age2, data=YearSummary)
+summary(mam_weather)
