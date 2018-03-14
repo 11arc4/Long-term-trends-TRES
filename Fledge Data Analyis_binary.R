@@ -11,7 +11,7 @@ dat <- read.csv("file:///C:/Users/11arc/Documents/Masters Thesis Project/Long te
 
 
 #Now we have some weather data that we could use to do a binary glm
-
+#############################################################
 #Question 1: Are nestlings fledging less often in later years ? 
 ggplot(dat %>% filter(Fledge/Hatch<=1), aes(x=Year, y=Fledge/Hatch))+
   geom_point(alpha=0.2)+
