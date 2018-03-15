@@ -103,6 +103,10 @@ newdata <- data.frame(Year2=rep(seq(0, 4.2, 0.1), 3),
 newdata$predicted <- predict(bmod, newdata, type="response")
 newdata$variance <- predict(bmod, newdata, type="variance")
 
-ggplot(newdata, aes(x=Year, y=predicted, color=Age))+
-  geom_line( )+
-  geom_ribbon(aes(ymin=predicted-variance, ymax=predicted+variance, fill=Age), alpha=0.4)
+ggplot()+
+  geom_line(data=newdata, aes(x=Year, y=predicted, color=Age), size=1)+
+  geom_ribbon(aes(x=Year, ymin=predicted-variance, ymax=predicted+variance, fill=Age), alpha=0.4, data=newdata)+
+  geom_point(data=Survival2, aes(x=Year, y=Estimate, color=Age) )+
+  labs(y="Predicted Survival Overwinter")+
+  ggthemes::theme_few(base_size = 16)+
+  facet_grid(~Age)
