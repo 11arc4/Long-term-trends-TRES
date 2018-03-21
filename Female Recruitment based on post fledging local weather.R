@@ -17,19 +17,19 @@ datMark <- readRDS("~/Masters Thesis Project/TRES Data Analysis/Vital Rates Mode
 #failures might renest, and definitely wouldnt affect the weather juvenile birds
 #are experiencing as they try to learn to feed themselves. 
 
-# fledgeDat <- as.data.frame(matrix(nrow=5506, ncol=4))
-# colnames(fledgeDat) <- c("Year", "NestID", "FledgeSize", "FledgeDate")
-# 
-# i=0
-# for(nest in as.list(globalData$nests)){
-#   i=i+1
-#   fledgeDat$Year[i] <- nest$year
-#   fledgeDat$NestID[i] <- nest$siteID
-#   fledgeDat$FledgeSize[i] <- nest$fledgeSize
-#   fledgeDat$FledgeDate[i] <- nest$fledgeDate
-# }
-# 
-# saveRDS(fledgeDat, "~/Masters Thesis Project/Long term trends paper/Data Files_long term trends/Fledge Success.rda")
+fledgeDat <- as.data.frame(matrix(nrow=5506, ncol=4))
+colnames(fledgeDat) <- c("Year", "NestID", "FledgeSize", "FledgeDate")
+
+i=0
+for(nest in as.list(globalData$nests)){
+  i=i+1
+  fledgeDat$Year[i] <- nest$year
+  fledgeDat$NestID[i] <- nest$siteID
+  fledgeDat$FledgeSize[i] <- nest$fledgeSize
+  fledgeDat$FledgeDate[i] <- nest$fledgeDate
+}
+
+saveRDS(fledgeDat, "~/Masters Thesis Project/Long term trends paper/Data Files_long term trends/Fledge Success.rda")
 
 
 fledgeDat<- readRDS("~/Masters Thesis Project/Long term trends paper/Data Files_long term trends/Fledge Success.rda")
@@ -54,36 +54,33 @@ ggplot(YearlyFledge, aes(x=Year, y=meanFledgeDate))+
 
 
 weather <- read.csv("file:///C:/Users/11arc/Documents/Masters Thesis Project/Environmental Datasets/Hartington IHD Weather Station Daily Data 1975 to  2017.csv", as.is=T)
-weather2 <- weather[26:nrow(weather), c(1,2,5,8,10,12,14,16,18)]
+weather2 <- weather[26:nrow(weather), c(1,2,6,8,10,12,14,16,18)]
 
-colnames(weather2)<- weather[25,]
+colnames(weather2)<- weather[25,c(1,2,6,8,10,12,14,16,18)]
   
-  
-
 colnames(weather2) <- c("Date", "Year",  
                        "MaxTemp", "MinTemp", "MeanTemp", "HeatDegDays", "CoolDegDays", "TotRain", "TotPrecip") 
 
 weather2$JDate <- lubridate::yday(as.Date(weather2$Date, format="%m/%d/%Y"))
 weather2$MeanTemp <- as.numeric(weather2$MeanTemp)
-
+weather2$MaxTemp <- as.numeric(weather2$MaxTemp)
+weather2$TotRain <- as.numeric(weather2$TotRain)
 
 
 YearlyFledge$MeanTemp <- c(NA)
 YearlyFledge$MinTemp <- c(NA)
-YearlyFledge$DaysBelow18 <- c(NA)
+YearlyFledge$DaysBelow18_mean <- c(NA)
+YearlyFledge$DaysBelow18_max <- c(NA)
 
 
 for(i in 1:nrow(YearlyFledge)){
-  YearlyFledge$MeanTemp[i] <- mean(weather2$MeanTemp[which(YearlyFledge$Year[i]==weather2$Year &
-                           YearlyFledge$meanFledgeDate[i]<=weather2$JDate & 
-                           YearlyFledge$meanFledgeDate[i]+ 28 >= weather2$JDate)], na.rm=T)
-  YearlyFledge$MinTemp[i] <- min(weather2$MinTemp[which(YearlyFledge$Year[i]==weather2$Year &
-                                                             YearlyFledge$meanFledgeDate[i]<=weather2$JDate & 
-                                                             YearlyFledge$meanFledgeDate[i]+ 28 >= weather2$JDate)], na.rm=T)
-  YearlyFledge$DaysBelow18[i] <- sum(weather2$MeanTemp[which(YearlyFledge$Year[i]==weather2$Year &
-                                                          YearlyFledge$meanFledgeDate[i]<=weather2$JDate & 
-                                                          YearlyFledge$meanFledgeDate[i]+ 28 >= weather2$JDate)]<18 )
-  
+  rows <- which(YearlyFledge$Year[i]==weather2$Year &
+                  YearlyFledge$meanFledgeDate[i]<=weather2$JDate & 
+                  YearlyFledge$meanFledgeDate[i]+ 28 >= weather2$JDate)[1:28]
+  YearlyFledge$MeanTemp[i] <- mean(weather2$MeanTemp[rows], na.rm=T)
+  YearlyFledge$MinTemp[i] <- min(weather2$MinTemp[rows], na.rm=T)
+  YearlyFledge$DaysBelow18_mean[i] <- sum(weather2$MeanTemp[rows]<18 | weather2$TotRain[rows]>0)
+  YearlyFledge$DaysBelow18_max[i] <- sum(weather2$MaxTemp[rows]<18 | weather2$TotRain[rows]>0) 
 }
 
 
@@ -126,17 +123,20 @@ YearlyFledge$MeanTemp[34] <- mean(Summer2011_2$MeanTemp[which(2011==Summer2011_2
 YearlyFledge$MinTemp[34] <- min(Summer2011_2$MinTemp[which(2011==Summer2011_2$Year &
                                                         YearlyFledge$meanFledgeDate[34]<=Summer2011_2$JDate & 
                                                         YearlyFledge$meanFledgeDate[34]+ 28 >= Summer2011_2$JDate)], na.rm=T)
-YearlyFledge$DaysBelow18[34] <- sum(Summer2011_2$MeanTemp[which(2011==Summer2011_2$Year &
+YearlyFledge$DaysBelow18_mean[34] <- sum(Summer2011_2$MeanTemp[which(2011==Summer2011_2$Year &
                                                              YearlyFledge$meanFledgeDate[34]<=Summer2011_2$JDate & 
-                                                             YearlyFledge$meanFledgeDate[34]+ 28 >= Summer2011_2$JDate)]<18 )
-
+                                                             YearlyFledge$meanFledgeDate[34]+ 28 >= Summer2011_2$JDate)]<18 |
+                                      Summer2011_2$TotRain[which(2011==Summer2011_2$Year &
+                                                                    YearlyFledge$meanFledgeDate[34]<=Summer2011_2$JDate & 
+                                                                    YearlyFledge$meanFledgeDate[34]+ 28 >= Summer2011_2$JDate)]>0)
+YearlyFledge$DaysBelow18_mean[34] <- NA
 
 
 #Clean up environment
 rm(list=(ls()[ls()!=c("datMark", "YearlyFledge")]))
 
 
-saveRDS(YearlyFledge, "LocalWeather")
+saveRDS(YearlyFledge, "~/Masters Thesis Project/TRES Data Analysis/Vital Rates Models/RMark Preliminary Survival Analysis/LocalWeather")
 
 ###Begining the analysis part, where we see if temperature post fledging predicts survival. 
 setwd("~/Masters Thesis Project/TRES Data Analysis/Vital Rates Models/RMark Preliminary Survival Analysis")

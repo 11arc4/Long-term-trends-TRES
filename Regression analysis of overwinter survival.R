@@ -17,7 +17,7 @@ Survival$Age <- factor(Survival$Age)
 
 #Remove the years and specific estimates that aren't any good (not enough birds
 #went into them, or we are at a boundary)
-Survival2 <- Survival %>% filter(Year !=1975 & Year!=1976 & Year!=2016 & Estimate<.9 & SE<0.2)
+Survival2 <- Survival %>% filter(Year !=1975 & Year!=1976 & Year!=2016 & Estimate<.9 & SE<0.2 & Year !=2011)
 
 ggplot(Survival2, aes(x=Year, y=Estimate, color=Age))+
   #geom_segment(aes(x=Year, xend=Year, y=Estimate-SE, yend=Estimate+SE, color=Age), alpha=0.6)+
@@ -142,7 +142,8 @@ for(i in 2:nrow(ENSOdat)){
 hurricane <- read.csv("file:///C:/Users/11arc/Documents/Masters Thesis Project/Environmental Datasets/Hurricanes.csv")
 
 Survival2$WinterENSO <- NA
-Survival2$DaysBelow18 <- NA
+Survival2$DaysBelow18_mean <- NA
+Survival2$DaysBelow18_max <- NA
 Survival2$Hurricanes <- NA
 Survival2$SugarAcreage <- NA
 
@@ -150,7 +151,8 @@ Survival2$SugarAcreage <- NA
 for (i in 1:nrow(Survival2)){
   Year<- Survival2$Year[i]
   Survival2$SugarAcreage[i] <- sugar$acreCaneSeed[Year==sugar$year]
-  Survival2$DaysBelow18[i] <- YearlyFledge$DaysBelow18 [Year==YearlyFledge$Year]
+  Survival2$DaysBelow18_mean[i] <- YearlyFledge$DaysBelow18_mean [Year==YearlyFledge$Year]
+  Survival2$DaysBelow18_max[i] <- YearlyFledge$DaysBelow18_max [Year==YearlyFledge$Year]
   Survival2$Hurricanes[i] <- hurricane$Hurricanes[Year==hurricane$Year]
   Survival2$WinterENSO[i] <- ENSOdat$ENSOWinter[Year==ENSOdat$Year]
 }
@@ -171,7 +173,7 @@ plot(resid(bmod_ENSO)~Survival2$TimePeriod)
 car::Anova(bmod_ENSO)
 dredge(bmod_ENSO)
 #Basically WinterENSO doesn't do shit
-
+bmam_ENSO <- betareg(Estimate ~ WinterENSO+Age*TimePeriod, data=Survival2, link="loglog")
 
 #Sugar acreage? 
 ggplot(Survival2, aes(x=SugarAcreage, y=Estimate, color=Age))+
@@ -190,53 +192,54 @@ plot(resid(bmod_sugar)~Survival2$TimePeriod)
 car::Anova(bmod_sugar)
 dredge(bmod_sugar)
 #Sugar acreage makes it into the model. 
-bmam_sugar<- betareg(Estimate ~ SugarAcreage* TimePeriod + Age*TimePeriod, data=Survival2, link="loglog")
+bmam_sugar<- betareg(Estimate ~ SugarAcreage* Age*TimePeriod, data=Survival2, link="loglog")
 summary(bmam_sugar)
 
 
-#Days below 18
-ggplot(Survival2, aes(x=DaysBelow18, y=Estimate, color=Age))+
+#Days where mean temp was below 18 in the first 4 weeks after fledging. I wonder
+#if the max temp is a better predictor (it is for nestling growth and all these
+#other things) but unfortunently we don't have that long term data available
+ggplot(Survival2, aes(x=DaysBelow18_mean, y=Estimate, color=Age))+
   geom_point()+
   facet_grid(TimePeriod~Age)+
   geom_smooth()
+ggplot(Survival2, aes(x=DaysBelow18_max, y=Estimate, color=Age))+
+  geom_point()+
+  facet_grid(TimePeriod~Age)+
+  geom_smooth(method="lm
+              ")
 
-bmod_days <- betareg(Estimate ~ DaysBelow18*Age*TimePeriod, data=Survival2, link="loglog")
-plot(bmod_days) 
-plot(resid(bmod_days)~Survival2$Age)
-plot(resid(bmod_days)~Survival2$DaysBelow18)
-plot(resid(bmod_days)~Survival2$TimePeriod)
+bmod_mean <- betareg(Estimate ~ DaysBelow18_mean*Age*TimePeriod, data=Survival2, link="loglog")
+plot(bmod_mean) 
+plot(resid(bmod_mean)~Survival2$Age)
+plot(resid(bmod_mean)~Survival2$DaysBelow18_mean)
+plot(resid(bmod_mean)~Survival2$TimePeriod)
 
 
-car::Anova(bmod_days) #keep all
-dredge(bmod_days)
+car::Anova(bmod_mean) #keep all
+dredge(bmod_mean)
 #Keep all is good!!!
-summary(bmod_days) #61% variation explained which is really quite good
+summary(bmod_mean) #61% variation explained which is really quite good
+bmam_mean <- bmod_mean
 
-newdata2 <- data.frame(DaysBelow18=rep(seq(0, 13, 1), 6),
-                       TimePeriod=rep(c(rep("Growing", 14), rep("Declining", 14)),3),
-                       Age = c(rep("Recruit", 28), rep("SYReturn", 28), rep("ASYReturn", 28)), 
-                       predicted=NA, 
-                       variance=NA)
-newdata2$predicted<- predict(bmod_days, newdata=newdata2, type="response")
-newdata2$variance<- predict(bmod_days, newdata=newdata2, type="variance")
 
-newdata2$TimePeriod <- factor(newdata2$TimePeriod, levels=c("Growing", "Declining"))
+#Based on max temp
+bmod_max <- betareg(Estimate ~ DaysBelow18_max*Age*TimePeriod, data=Survival2, link="loglog")
+plot(bmod_max) 
+plot(resid(bmod_max)~Survival2$Age)
+plot(resid(bmod_max)~Survival2$DaysBelow18_mean)
+plot(resid(bmod_max)~Survival2$TimePeriod)
+#Fit's fine
 
-ggplot()+
-  geom_line(data=newdata2, aes(x=DaysBelow18, y=predicted, color=TimePeriod))+
-  #geom_ribbon(data=newdata2, aes(x=DaysBelow18, ymin=predicted-variance, ymax=predicted+variance, fill=TimePeriod), alpha=0.4)+
-  geom_point(data=Survival2, aes(x=DaysBelow18, y=Estimate, color=TimePeriod))+
-  facet_grid(Age~TimePeriod)
-#Looks like whent the population was growing cold weather on the breeding ground
-#used to impact survival, but that's not really a thing anymore. SOmething else
-#much be explaining it?
-
+car::Anova(bmod_max)
+dredge(bmod_max)
+bmam_max <- betareg(Estimate ~ DaysBelow18_max*TimePeriod +Age*TimePeriod, data=Survival2, link="loglog")
 
 #Hurricanes
 ggplot(Survival2, aes(x=Hurricanes, y=Estimate, color=Age))+
   geom_point()+
-  facet_grid(~Age)+
-  geom_smooth()
+  facet_grid(TimePeriod~Age)+
+  geom_smooth(method="lm")
 bmod_hurricanes <- betareg(Estimate ~ Hurricanes*Age*TimePeriod, data=Survival2, link="loglog")
 plot(bmod_hurricanes) 
 plot(resid(bmod_hurricanes)~Survival2$Age)
@@ -246,4 +249,40 @@ plot(resid(bmod_hurricanes)~Survival2$TimePeriod)
 
 car::Anova(bmod_hurricanes)
 dredge(bmod_hurricanes)
-#hurricanes aren't great
+
+bmam_hurricanes <- betareg(Estimate ~ Hurricanes+Age*TimePeriod, data=Survival2, link="loglog")
+summary(bmam_hurricanes)
+#hurricanes aren't a great predictor. 
+
+bnull <- betareg(Estimate ~ Age*TimePeriod, data=Survival2, link="loglog")
+
+AICc(bmam_hurricanes, bmam_sugar, bmam_mean,bmam_max, bmam_ENSO, bnull)
+
+#Days is easily the best model by a whole lot. 
+
+summary(bmam_days)
+
+
+newdata2 <- data.frame(DaysBelow18_mean=rep(seq(6, 22, 1), 6),
+                       TimePeriod=rep(c(rep("Growing", 17), rep("Declining", 17)),3),
+                       Age = c(rep("Recruit", 34), rep("SYReturn", 34), rep("ASYReturn", 34)), 
+                       predicted=NA, 
+                       variance=NA)
+newdata2$predicted<- predict(bmam_mean, newdata=newdata2, type="response")
+newdata2$variance<- predict(bmam_mean, newdata=newdata2, type="variance")
+
+newdata2$TimePeriod <- factor(newdata2$TimePeriod, levels=c("Growing", "Declining"))
+
+ggplot()+
+  geom_line(data=newdata2  , aes(x=DaysBelow18_mean, y=predicted, color=TimePeriod))+
+  #geom_ribbon(data=newdata2, aes(x=DaysBelow18_mean, ymin=predicted-variance, ymax=predicted+variance, fill=TimePeriod), alpha=0.4)+
+  geom_point(data=Survival2 , aes(x=DaysBelow18_mean, y=Estimate, color=TimePeriod))+
+  facet_grid(Age~TimePeriod)+
+  labs(x="Days below 18 \nduring peak breeding", y="Apparent Survival")+
+  ggthemes::theme_few(base_size = 16)
+
+
+
+
+
+
