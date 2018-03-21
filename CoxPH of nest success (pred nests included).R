@@ -1,7 +1,6 @@
 #Are nests surviving less than they used to when we include predated nests? 
 #a cox-proportional hazards model
 library(survival)
-
 library(tidyverse)
 library(MuMIn)
 
@@ -9,7 +8,7 @@ library(MuMIn)
 # # #Load in the nest level fledge data.
 # dat <- read.csv("file:///C:/Users/11arc/Documents/Masters Thesis Project/Long term trends paper/Data Files_long term trends/Binary Fledge Success wo experimental nests.csv", as.is=T, na.strings = "" ) %>% filter(Daysabove18 <10)
 # #
-# # #Let's remove nests without dated that we need, and the predated nests
+# # #Let's remove nests without dated that we need, leving in the predated nests
 # Pred <- dat %>% filter( FledgeDate >HatchDate & !is.na(FledgeDate) & !is.na(HatchDate) )
 # #
 # #
