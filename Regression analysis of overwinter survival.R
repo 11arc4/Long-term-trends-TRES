@@ -256,9 +256,10 @@ summary(bmam_hurricanes)
 
 bnull <- betareg(Estimate ~ Age*TimePeriod, data=Survival2, link="loglog")
 
-AICc(bmam_hurricanes, bmam_sugar, bmam_mean,bmam_max, bmam_ENSO, bnull)
+AICc(bmam_hurricanes, bmam_sugar, bmam_mean,bmam_max, bmam_ENSO, bnull, bmam_all)
 
-#Days is easily the best model by a whole lot. 
+#Days is easily the best model by a whole lot. INcluding sugar and days below 18
+#(mean) is the next best.
 
 summary(bmam_days)
 
@@ -285,4 +286,18 @@ ggplot()+
 
 
 
+bmod_all <- betareg(Estimate ~ Hurricanes + WinterENSO + SugarAcreage2*Age*TimePeriod + DaysBelow18_mean*Age*TimePeriod, data=Survival2, link="loglog")
+plot(bmod_all) 
+plot(resid(bmod_all)~Survival2$Age)
+plot(resid(bmod_all)~Survival2$Hurricanes)
+plot(resid(bmod_all)~Survival2$TimePeriod)
+plot(resid(bmod_all)~Survival2$WinterENSO)
+plot(resid(bmod_all)~Survival2$SugarAcreage2)
+plot(resid(bmod_all)~Survival2$DaysBelow18_mean)
+
+car::Anova(bmod_all)
+dredge(bmod_all)
+
+bmam_all <- betareg(Estimate ~ SugarAcreage2*Age*TimePeriod + DaysBelow18_mean*Age*TimePeriod, data=Survival2, link="loglog")
+summary(bmam_all)
 
