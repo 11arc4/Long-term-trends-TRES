@@ -100,11 +100,25 @@ DiscreteResults$SYReturnSE[3:42]<- RealResults$se[seq(44, 122, 2)]
 DiscreteResults$SYReturnSE[1]<- RealResults$se[124]
 
 
-YearlySurvival <- DiscreteResults %>% gather(ASYReturn, SYReturn, Recruit, key="Age", value="Estimate" )%>%
-  gather(RecruitSE, SYReturnSE, ASYReturnSE, key="AgeSE", value="SE")
-YearlySurvival<- YearlySurvival[,-4]
+YearlySurvival <- data.frame(Year=rep(seq(1975, 2016, 1), 3), 
+                             Age=c(rep("Recruit",42), rep( "SYReturn", 42), rep("ASYReturn", 42)), 
+                             Estimate=NA, 
+                             SE=NA)
 
-YearlySurvival$SE
+for(i in 1:42){
+  dr <- which(YearlySurvival$Year[i]==DiscreteResults$Year)
+  YearlySurvival$Estimate[i]<- DiscreteResults$Recruit[dr]
+  YearlySurvival$SE[i]<- DiscreteResults$RecruitSE[dr]
+  
+  YearlySurvival$Estimate[i+42]<- DiscreteResults$SYReturn[dr]
+  YearlySurvival$SE[i+42]<- DiscreteResults$SYReturnSE[dr]
+  
+  YearlySurvival$Estimate[i+84]<- DiscreteResults$ASYReturn[dr]
+  YearlySurvival$SE[i+84]<- DiscreteResults$ASYReturnSE[dr]
+}
+  
+
+plot(YearlySurvival$Estimate[43:84]~DiscreteResults$SYReturn)
 
 
 ggplot(YearlySurvival %>% filter(Year !=1975 & Year!=1976 & Year!=2016 & Estimate<.9 & SE<0.2))+
