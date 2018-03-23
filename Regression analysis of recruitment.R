@@ -5,8 +5,9 @@
 #recruitment has crashed, so perhaps interpretation would be easier if I only
 #looked at the recruits in environmental models. They might well be affected
 #differently.
-
-
+library(MuMIn)
+library(tidyverse)
+library(betareg)
 ############MAKE THE DATA
 Survival <- read.csv("file:///C:/Users/11arc/Documents/Masters Thesis Project/Long term trends paper/Data Files_long term trends/Yearly Survival Estimates.csv", na.strings="", as.is=T)
 
@@ -62,7 +63,7 @@ for (i in 1:nrow(Survival2)){
   Survival2$WinterENSO[i] <- ENSOdat$ENSOWinter[Year==ENSOdat$Year]
 }
 
-
+Survival2$SugarAcreage2 <- Survival2$SugarAcreage/ 10000
 
 #############Does winter ENSO score predict recruitment rates?
 bmod_ENSO <- betareg(Estimate ~ WinterENSO*TimePeriod, data=Survival2, link="loglog")
@@ -72,13 +73,169 @@ plot(resid(bmod_ENSO)~Survival2$TimePeriod) # We are overestimating declining.
 which(resid(bmod_ENSO) <(-3))
 
 #Try removing leverage points
-Survival3 <- Survival2[-c(33, 34, 35),]
+Survival3 <- Survival2[-c(33, 35),]
 bmod_ENSO <- betareg(Estimate ~ WinterENSO*TimePeriod, data=Survival3, link="loglog")
 plot(bmod_ENSO) #Fixed that.  
 plot(resid(bmod_ENSO)~Survival3$WinterENSO)
 plot(resid(bmod_ENSO)~Survival3$TimePeriod) #That's all better now. 
 
-
+options(na.action = "na.fail")
 dredge(bmod_ENSO)
 car::Anova(bmod_ENSO)
+
+bmam_ENSO <- betareg(Estimate ~ WinterENSO+TimePeriod, data=Survival3, link="loglog")
+
+
+
+
+
+################Do hurricanes predict reccruitment?
+bmod_hurricane <- betareg(Estimate ~ Hurricanes*TimePeriod, data=Survival2, link="loglog")
+plot(bmod_hurricane) #There's definitely leverage
+plot(resid(bmod_hurricane)~Survival2$Hurricanes)
+plot(resid(bmod_hurricane)~Survival2$TimePeriod) #not tip top again
+which(resid(bmod_hurricane) <(-3))
+
+bmod_hurricane <- betareg(Estimate ~ Hurricanes*TimePeriod, data=Survival3, link="loglog")
+plot(resid(bmod_hurricane)~Survival3$Hurricanes)
+plot(resid(bmod_hurricane)~Survival3$TimePeriod)
+
+dredge(bmod_hurricane) 
+car::Anova(bmod_hurricane)
+
+bmam_hurricane <- betareg(Estimate ~ Hurricanes+TimePeriod, data=Survival3, link="loglog")
+
+##############Does sugar cane acreage predict recruitment? 
+bmod_sugar <- betareg(Estimate ~ SugarAcreage2*TimePeriod, data=Survival2, link="loglog")
+plot(bmod_sugar) #def has outliers
+plot(resid(bmod_sugar)~Survival2$TimePeriod) #not great
+plot(resid(bmod_sugar)~Survival2$SugarAcreage2)
+which(resid(bmod_sugar)<(-3))
+#lets try removing the outliers
+bmod_sugar <- betareg(Estimate ~ SugarAcreage2*TimePeriod, data=Survival3, link="loglog")
+plot(resid(bmod_sugar)~Survival3$SugarAcreage2)
+plot(resid(bmod_sugar)~Survival3$TimePeriod)
+#Looks a lot better, althogh still not perfect. 
+
+dredge(bmod_sugar)
+car::Anova(bmod_sugar)
+bmam_sugar <- betareg(Estimate ~ SugarAcreage2*TimePeriod, data=Survival3, link="loglog")
+
+################Does the number of good days during the post-fledging period predict recruitment?
+#based on mean temp
+bmod_mean <- betareg(Estimate ~ DaysBelow18_mean*TimePeriod, data=Survival2, link="loglog")
+plot(bmod_mean)
+plot(resid(bmod_mean)~Survival2$TimePeriod) #not great
+plot(resid(bmod_mean)~Survival2$DaysBelow18_mean)
+which(resid(bmod_mean)<(-3))
+#removing residuals
+bmod_mean <- betareg(Estimate ~ DaysBelow18_mean*TimePeriod, data=Survival3, link="loglog")
+plot(resid(bmod_mean)~Survival3$TimePeriod) #not great
+plot(resid(bmod_mean)~Survival3$DaysBelow18_mean)
+
+dredge(bmod_mean)
+car::Anova(bmod_mean)
+
+bmam_mean <- betareg(Estimate ~ DaysBelow18_mean*TimePeriod, data=Survival3, link="loglog")
+
+#based on max temp
+bmod_max <- betareg(Estimate ~ DaysBelow18_max*TimePeriod, data=Survival2, link="loglog")
+plot(bmod_max)
+plot(resid(bmod_max)~Survival2$TimePeriod) #not great
+plot(resid(bmod_max)~Survival2$DaysBelow18_max) #very bad
+which(resid(bmod_max)<(-3))
+#remove leverage points (at least 2 of them)
+bmod_max <- betareg(Estimate ~ DaysBelow18_max*TimePeriod, data=Survival3, link="loglog")
+plot(resid(bmod_max)~Survival3$TimePeriod) #not great
+plot(resid(bmod_max)~Survival3$DaysBelow18_max) #much better
+
+dredge(bmod_max)
+car::Anova(bmod_max)
+
+bmam_max <- bmod_max
+
+
+AICc(bmam_ENSO, bmam_hurricane, bmam_sugar, bmam_max, bmam_mean)
+#Sugar and days (based on mean) are about equal. 
+
+#Lets put them in together. 
+bmod_sugarandDays <- betareg(Estimate ~ DaysBelow18_max*TimePeriod + SugarAcreage2*TimePeriod, data=Survival3, link="loglog")
+plot(bmod_sugarandDays)
+plot(resid(bmod_sugarandDays)~Survival3$DaysBelow18_max)
+plot(resid(bmod_sugarandDays)~Survival3$TimePeriod)
+plot(resid(bmod_sugarandDays)~Survival3$SugarAcreage2)
+#Looks good
+
+dredge(bmod_sugarandDays)
+car::Anova(bmod_sugarandDays)
+#Huh. When you put them both together, sugar acreage take it all away
+
+summary(bmam_sugar)
+
+
+
+newdata_sugar <- data.frame(SugarAcreage2=rep(seq(3.43, 6.78, length.out = 20 ), 2), 
+                            TimePeriod= c(rep("Growing", 20), rep("Declining", 20)), 
+                            Predicted=NA, 
+                            Variance=NA)
+
+newdata_sugar$Predicted <- predict(bmam_sugar, newdata_sugar)
+newdata_sugar$TimePeriod <- factor(newdata_sugar$TimePeriod, levels=c("Growing", "Declining"))
+
+ggplot()+
+  geom_line(data=newdata_sugar, aes(x=SugarAcreage2*10000, y=Predicted))+
+  geom_point(data=Survival2, aes(x=SugarAcreage, y=Estimate))+
+  facet_grid(~TimePeriod)+
+  labs(x="Acres of sugar cane", y="Apparent Recruitment")+
+  ggthemes::theme_few(base_size = 16)
+
+#Perhaps the juveniles were overwintering in natural swamps and habitat during
+#the time that the population was growing and had other options so weren't as
+#dependent on sugar cane fields for overwinter habitat.
+
+
+
+
+
+
+###########Has sugar cane declined? 
+ggplot(sugar, aes(x=year, y=acreCaneSeed))+
+  geom_point()
+#Yes it has since about the time we are interested in BUT historically we have
+#been increasing since about the 1900s. 1800s were way higher
+
+Sugar2 <- sugar %>% filter(year>1975 & year<2017)
+
+ggplot(Sugar2, aes(x=year, y=acreCaneSeed))+
+  geom_point()+
+  geom_vline(xintercept = 1996)
+
+
+Sugar2$TimePeriod <- NA
+Sugar2$TimePeriod[which(Sugar2$year<1997)]<- "Growing"
+Sugar2$TimePeriod[which(Sugar2$year>1996)]<- "Declining"
+Sugar2$TimePeriod <- factor(Sugar2$TimePeriod, levels=c("Growing", "Declining"))
+Sugar2$Year2 <- Sugar2$year/10-197.5
+
+Sugar2$AcreageSugar <- Sugar2$acreCaneSeed/10000
+
+mod <- lm(AcreageSugar~TimePeriod*Year2, data=Sugar2)
+plot(mod)
+hist(resid(mod))
+shapiro.test(resid(mod)) #passes but just barely. I will go with it. 
+plot(resid(mod)~Sugar2$Year2)
+plot(resid(mod)~Sugar2$TimePeriod)
+#This looks great
+
+dredge(mod) #full model is easily the best
+car::Anova(mod)
+
+summary(mod)
+
+ggplot(Sugar2, aes(y=AcreageSugar*10000, x=Year2*10+1975, group=TimePeriod))+
+  geom_point()+
+  geom_smooth(method="lm", formula= y~x)+
+  labs(x="Year", y="Acreage of Sugar" )+
+  ggthemes::theme_few(base_size = 16)
+
 

@@ -100,13 +100,14 @@ newdata <- data.frame(Year2=rep(seq(0, 4.2, 0.1), 3),
 
 newdata$predicted <- predict(bmam, newdata, type="response")
 newdata$variance <- predict(bmam, newdata, type="variance")
-
+newdata$Age <- factor(newdata$Age, levels=c("Recruit", "SYReturn", "ASYReturn"))
 ggplot()+
-  geom_line(data=newdata, aes(x=Year, y=predicted, color=Age), size=1)+
+  geom_line(data=newdata %>% filter(TimePeriod=="Declining"), aes(x=Year, y=predicted), size=1)+
+  geom_line(data=newdata %>% filter(TimePeriod=="Growing"), aes(x=Year, y=predicted), size=1)+
   #geom_ribbon(aes(x=Year, ymin=predicted-variance, ymax=predicted+variance, fill=Age), alpha=0.4, data=newdata)+
   #geom_segment(data=Survival2, aes(x=Year, xend=Year, y=Estimate-SE, yend=Estimate+SE) )+
-  geom_point(data=Survival2, aes(x=Year, y=Estimate, color=Age) )+
-  labs(y="Predicted Survival Overwinter")+
+  geom_point(data=Survival2, aes(x=Year, y=Estimate, color=Age), show.legend = F)+
+  labs(y="Apparent Survival")+
   ggthemes::theme_few(base_size = 16)+
   facet_grid(~Age)
 
