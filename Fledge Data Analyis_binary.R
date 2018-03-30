@@ -69,10 +69,11 @@ ggplot(newdata, aes(y=predicted, x=Year2*10+1975, group=TimePeriod))+
   geom_line()+
   geom_ribbon(aes(ymin=lse, ymax=use),alpha=0.2)+
   ylim(0, 1)+
-  labs(y="Fledging Success", x="Year")+
+  labs(y="Fledging \nSuccess", x="Year")+
   geom_vline(xintercept = c(1996.5, 2013.5 ))+
-  ggthemes::theme_few(base_size = 16)
-
+  ggthemes::theme_few(base_size = 16)+
+  theme(text = element_text(size=20), axis.title.y = element_text(angle=0, vjust=0.5))
+  
 
 
 
@@ -85,12 +86,38 @@ ggplot(newdata, aes(y=predicted, x=Year2*10+1975, group=TimePeriod))+
 NoPred <- dat %>% filter( !is.na(Fledge2) & (FailureCause2!="PREDATION" |is.na(FailureCause2)) & !is.na(Daysabove18) )
 
 
+nopredMod1 <- glm(Fledge2 ~ Year2*TimePeriod, family=binomial(link="logit"), data=NoPred)
+nopredMod2 <- glm(Fledge2 ~ Year2*TimePeriod, family=binomial(link="probit"), data=NoPred)
+nopredMod3 <- glm(Fledge2 ~ Year2*TimePeriod, family=binomial(link="cauchit"), data=NoPred)
+nopredMod4 <- glm(Fledge2 ~ Year2*TimePeriod, family=binomial(link="log"), data=NoPred)
+nopredMod5 <- glm(Fledge2 ~ Year2*TimePeriod, family=binomial(link="cloglog"), data=NoPred)
+#Quick check to pick the best link function
+AICc(nopredMod1, nopredMod2, nopredMod3, nopredMod4, nopredMod5) #no really substantial differences
+#I will stick to the default
 
-nopredMod <- glm(Fledge2 ~ Year2*TimePeriod, family=binomial, data=NoPred)
-plot(nopredMod)
-plot(resid(nopredMod)~NoPred$Year2)
-plot(resid(nopredMod)~NoPred$TimePeriod) #Better at growin but I think this is a amount of data thing. 
-summary(nopredMod)
+NoPred$TimePeriod<- factor(NoPred$TimePeriod, levels=c("Growing", "Declining", "PostDecline"))
+
+
+plot(nopredMod1)
+plot(resid(nopredMod1)~NoPred$Year2)
+plot(resid(nopredMod1)~NoPred$TimePeriod) #Better at growin but I think this is a amount of data thing. 
+car::Anova(nopredMod1)
+summary(aov(nopredMod1))
+dredge(nopredMod1)
+summary(nopredMod1)
+#definitely need the full model
+
+
+oddsRat <- exp(coef(nopredMod1))
+get.or.se <- function(model) {
+  broom::tidy(model) %>% 
+    mutate(or = exp(estimate),
+           var.diag = diag(vcov(model)),
+           or.se = sqrt(or^2 * var.diag)) %>%
+    select(or.se) %>% unlist %>% unname
+}
+
+oddsRatSE <- get.or.se(nopredMod1)
 
 newdata2 <- data.frame(Year2=rep(seq(0, 4.2, 0.1)),
                       TimePeriod=c(rep("Growing", 22), rep("Declining", 17), rep("PostDecline", 4)),
@@ -133,10 +160,12 @@ dredge(daysMod_nopred)
 car::Anova(daysMod_nopred)
 mamdaysMod_nopred <-  glm(Fledge2 ~ TimePeriod + Daysabove18, family=binomial, data=NoPred)
 summary(mamdaysMod_nopred)
+summary(aov(mamdaysMod_nopred))
 
 #Yes. More days above 18 mean that you are more likely to fledge. 
 
-
+oddsRateDays <- exp(coef(mamdaysMod_nopred))
+oddsRatSEDays <- get.or.se(mamdaysMod_nopred)
 
 
 newdata_days <- data.frame(Daysabove18=rep(seq(0, 9, 1),3),
@@ -155,12 +184,16 @@ newdata_days$predicted <- arm::invlogit(newdata_days$predicted_logit)
 newdata_days$use <- arm::invlogit(newdata_days$predicted_logit+ (newdata_days$se_logit))
 newdata_days$lse <- arm::invlogit(newdata_days$predicted_logit- (newdata_days$se_logit))
 
+newdata_days$TimePeriod <- factor(newdata_days$TimePeriod, levels=c("Growing", "Declining", "PostDecline"))
 
 ggplot(newdata_days, aes(x=Daysabove18, y=predicted, fill=TimePeriod))+
   geom_line(aes(color=TimePeriod), size=1)+
-  geom_ribbon(aes(ymin=use, ymax=lse), alpha=0.4)+
-  labs(x="Days of good weather", y="Fledging Success", fill="Population Status", color="Population Status")+
-  ggthemes::theme_few(base_size = 16)
+  #geom_ribbon(aes(ymin=use, ymax=lse), alpha=0.4)+
+  labs(x="Days of good weather", y="Fledging\nSuccess", fill="Population \nStatus", color="Population \nStatus")+
+  ggthemes::theme_few(base_size = 16)+
+  theme(text = element_text(size=20), axis.title.y = element_text(angle=0, vjust=0.5))+
+  scale_color_manual(values=c("springgreen3", "firebrick3", "blue" ), labels=c("Growing", "Declining", "Post Decline"))
+  
 
 
 #################################################################
@@ -206,7 +239,7 @@ calculateDaysabove18 <- function(HatchDate, Year){
     return(NA)
   } else {
     #how many of those days were warm enough for insects, and not raining (more than 1mm)
-    return(length(which(weatherPoik$MaxTemp>18 & weatherPoik$TotRain==0)))
+    return(length(which(weatherPoik$MaxTemp>18.5 & weatherPoik$TotRain==0)))
   }
 }
 
@@ -231,8 +264,10 @@ summary(mam2)
 
 ggplot(YearSummary, aes(y=MeanDaysabove18, x=Year))+
   geom_point()+
-  geom_smooth(method="lm")+
-  labs(y="Mean days of good weather", y="Year")+
-  ggthemes::theme_few(base_size = 16)
+  geom_smooth(method="lm", se=F, color="black")+
+  labs(y="Mean days of\ngood weather", y="Year")+
+  ggthemes::theme_few(base_size = 16)+
+  theme(text = element_text(size=20), axis.title.y = element_text(angle=0, vjust=0.5))
+  
 
 

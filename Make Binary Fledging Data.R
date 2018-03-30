@@ -100,7 +100,7 @@ calculateDaysabove18 <- function(HatchDate, Year){
     return(NA)
   } else {
     #how many of those days were warm enough for insects, and not raining (more than 1mm)
-    return(length(which(weatherPoik$MaxTemp>18 & weatherPoik$TotRain==0)))
+    return(length(which(weatherPoik$MaxTemp>18. & weatherPoik$TotRain==0)))
   }
 }
 
@@ -117,7 +117,7 @@ dat2$Year2 <- dat2$Year/10-197.5
 dat2$TimePeriod <- NA
 dat2$TimePeriod[which(dat2$Year<1997)]<- "Growing"
 dat2$TimePeriod[which(dat2$Year>1996)]<- "Declining"
-dat2$TimePeriod[which(dat2$Year>2013)]<- "PostDecline"
+dat2$TimePeriod[which(dat2$Year>2014)]<- "PostDecline"
 dat2$TimePeriod <- factor(dat2$TimePeriod, levels=c("Growing", "Declining", "PostDecline"))
 
 

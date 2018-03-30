@@ -158,8 +158,8 @@ bmam_max <- bmod_max
 AICc(bmam_ENSO, bmam_hurricane, bmam_sugar, bmam_max, bmam_mean)
 #Sugar and days (based on mean) are about equal. 
 
-#Lets put them in together. 
-bmod_sugarandDays <- betareg(Estimate ~ DaysBelow18_max*TimePeriod + SugarAcreage2*TimePeriod, data=Survival3, link="loglog")
+#Lets put them all in together. 
+bmod_all <- betareg(Estimate ~ DaysBelow18_max*TimePeriod + SugarAcreage2*TimePeriod+ ENSO+Hurricane, data=Survival3, link="loglog")
 plot(bmod_sugarandDays)
 plot(resid(bmod_sugarandDays)~Survival3$DaysBelow18_max)
 plot(resid(bmod_sugarandDays)~Survival3$TimePeriod)
@@ -188,6 +188,10 @@ ggplot()+
   facet_grid(~TimePeriod)+
   labs(x="Acres of sugar cane", y="Apparent Recruitment")+
   ggthemes::theme_few(base_size = 16)
+
+  
+
+
 
 #Perhaps the juveniles were overwintering in natural swamps and habitat during
 #the time that the population was growing and had other options so weren't as
@@ -237,5 +241,31 @@ ggplot(Sugar2, aes(y=AcreageSugar*10000, x=Year2*10+1975, group=TimePeriod))+
   geom_smooth(method="lm", formula= y~x)+
   labs(x="Year", y="Acreage of Sugar" )+
   ggthemes::theme_few(base_size = 16)
+
+
+
+
+
+
+#plots for presentation
+ggplot()+
+  geom_line(data=newdata_sugar, aes(x=SugarAcreage2*10000/247, y=Predicted), size=1)+
+  geom_point(data=Survival2, aes(x=SugarAcreage/247, y=Estimate))+
+  facet_grid(~TimePeriod)+
+  labs(x="Square km of sugar cane", y="Juvenile\nSurvival")+
+  ggthemes::theme_few(base_size = 16)+
+  theme(text = element_text(size=20), axis.title.y = element_text(angle=0, vjust=0.5))+
+  scale_x_continuous(breaks=c(150, 200, 250))
+
+
+ggplot(Sugar2, aes(y=AcreageSugar*10000/247, x=Year2*10+1975, group=TimePeriod))+
+  geom_point()+
+  geom_smooth(method="lm", formula= y~x, color="black", se=F, size=1)+
+  labs(x="Year", y="Square km \nsugar cane" )+
+  ggthemes::theme_few(base_size = 16)+
+  scale_y_continuous(breaks=c(150, 200, 250))+
+  theme(text = element_text(size=20), axis.title.y = element_text(angle=0, vjust=0.5))+
+  geom_vline(xintercept = 1996.5)
+
 
 

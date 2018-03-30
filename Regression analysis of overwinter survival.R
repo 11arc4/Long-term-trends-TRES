@@ -2,8 +2,9 @@
 library(tidyverse)
 library(betareg)
 library(MuMIn)
-#Matt Guzzo suggested pulling the MARK estimates of survival out and using those as data points in a regression analysis. 
-#Then we can follow a similar analysis as the fledging analysis. 
+#Matt Guzzo suggested pulling the MARK estimates of survival out and using those
+#as data points in a regression analysis. Then we can follow a similar analysis
+#as the fledging analysis.
 
 Survival <- read.csv("file:///C:/Users/11arc/Documents/Masters Thesis Project/Long term trends paper/Data Files_long term trends/Yearly Survival Estimates.csv", na.strings="", as.is=T)
 
@@ -86,8 +87,17 @@ summary(bmod6)$pseudo.r.squared
 
 options(na.action = "na.fail")
 dredge(bmod2)
-car::Anova(bmod2)
+
+
+#Need to test significance of 3 way interaction
+bmod2_2 <- betareg(Estimate ~ Year2*Age+ Age*TimePeriod+ TimePeriod*Year2, data=Survival2, link="loglog")
+
+lmtest::lrtest(bmod2, bmod2_2)
+
+
+
 bmam <-  betareg(Estimate ~ Year2*Age*TimePeriod, data=Survival2, link="loglog")
+
 
 newdata <- data.frame(Year2=rep(seq(0, 4.2, 0.1), 3),
                       Year=rep(seq(1975, 2017, 1), 3),
@@ -110,6 +120,19 @@ ggplot()+
   labs(y="Apparent Survival")+
   ggthemes::theme_few(base_size = 16)+
   facet_grid(~Age)
+
+
+
+#Presentation quality
+ggplot()+
+  geom_line(data=newdata %>% filter(TimePeriod=="Declining" & Age=="Recruit"), aes(x=Year, y=predicted), size=1)+
+  geom_line(data=newdata %>% filter(TimePeriod=="Growing" & Age=="Recruit"), aes(x=Year, y=predicted), size=1)+
+  geom_point(data=Survival2 %>% filter(Age=="Recruit"), aes(x=Year, y=Estimate), show.legend = F)+
+  labs(y="Juvenile \nSurvival")+
+  ggthemes::theme_few(base_size = 16)+
+  geom_vline(xintercept=1996.5)+
+  theme(text = element_text(size=20), axis.title.y = element_text(angle=0, vjust=0.5))
+
 
 #The SE on these points is process variance not sampling variance, so I think it
 #would be ok to use means as points for the population mean survival that year.
@@ -264,7 +287,7 @@ summary(bmam_hurricanes)
 
 bnull <- betareg(Estimate ~ Age*TimePeriod, data=Survival2, link="loglog")
 
-AICc(bmam_hurricanes, bmam_sugar, bmam_mean,bmam_max, bmam_ENSO, bnull)
+AICc(bmam_hurricanes, bmam_sugar, bmam_mean, bmam_max, bmam_ENSO, bnull)
 
 #Days is easily the best model by a whole lot (based on max temp). INcluding ENSO and days below 18
 #(mean) is the next best.
@@ -306,7 +329,7 @@ plot(resid(bmod_all)~Survival2$DaysBelow18_mean)
 car::Anova(bmod_all)
 dredge(bmod_all)
 
-bmam_all <- betareg(Estimate ~ Age*TimePeriod + DaysBelow18_max*TimePeriod+ SugarAcreage2, data=Survival2, link="loglog")
+bmam_all <- betareg(Estimate ~ Age*TimePeriod + DaysBelow18_max*TimePeriod+ SugarAcreage2+ Hurricanes + , data=Survival2, link="loglog")
 summary(bmam_all) #explains 58% of variation
 
 

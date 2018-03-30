@@ -5,6 +5,7 @@ library(car)
 #Read in the binary fledging data
 dat <- read.csv("file:///C:/Users/11arc/Documents/Masters Thesis Project/Long term trends paper/Data Files_long term trends/Binary Fledge Success wo experimental nests.csv", as.is=T, na.strings = "" ) %>% filter(Daysabove18 <10)
 dat$TimePeriod<-factor(dat$TimePeriod, levels=c("Growing", "Declining", "PostDecline"))
+dat$TimePeriod<-factor(dat$TimePeriod, levels=c("PostDecline", "Declining", "Growing"))
 
 #make a dataset containing only nests that weren't predated and nests that were
 #predated. Remove all other causes of death because they obscure whether the
@@ -32,6 +33,21 @@ options(na.action="na.fail")
 dredge(mod_pred)
 Anova(mod_pred)
 summary(mod_pred)
+summary(aov(mod_pred))
+
+
+
+oddsRat <- exp(coef(mod_pred))
+get.or.se <- function(model) {
+  broom::tidy(model) %>% 
+    mutate(or = exp(estimate),
+           var.diag = diag(vcov(model)),
+           or.se = sqrt(or^2 * var.diag)) %>%
+    select(or.se) %>% unlist %>% unname
+}
+
+oddsRatSE <- get.or.se(mod_pred)
+
 
 newdata <- data.frame(Year2=rep(seq(0, 4.2, 0.1)),
                       TimePeriod=c(rep("Growing", 22), rep("Declining", 17), rep("PostDecline", 4)),
@@ -71,6 +87,9 @@ options(na.action="na.fail")
 dredge(mod_preddays)
 Anova(mod_pred)
 summary(mod_preddays)
+
+oddsRat_days <- exp(coef(mod_preddays))
+oddsRatSE_days <- get.or.se(mod_preddays)
 
 newdata_days <- data.frame(Daysabove18=rep(seq(0, 9, 1),3),
                            TimePeriod=c(rep("Growing", 10), rep("Declining", 10), rep("PostDecline", 10)),
