@@ -1,4 +1,4 @@
-#Regression analysis of environmental causes of recruitment decline. 
+#Regression analysis of environmental causes of recruitment decline using beta regression.. 
 
 #this is based on my "Regression analysis of overwinter survival" where I did
 #all 3 age classes. I thought that the first graph shows that really only
@@ -12,15 +12,16 @@ library(betareg)
 Survival <- read.csv("file:///C:/Users/11arc/Documents/Masters Thesis Project/Long term trends paper/Data Files_long term trends/Yearly Survival Estimates.csv", na.strings="", as.is=T)
 
 Survival$TimePeriod <- NA
-Survival$TimePeriod[which(Survival$Year<1997)]<- "Growing"
-Survival$TimePeriod[which(Survival$Year>1996)]<- "Declining"
-#Survival$TimePeriod[which(Survival$Year>2013)]<- "PostDecline"
+Survival$TimePeriod[which(Survival$Year<1992)]<- "Growing"
+Survival$TimePeriod[which(Survival$Year>1991)]<- "Declining"
+#Survival$TimePeriod[which(Survival$Year>2014)]<- "PostDecline"
+#We don't have enough post decline data to really use this. 
 Survival$TimePeriod <- factor(Survival$TimePeriod, levels=c("Growing", "Declining"))
 Survival$Age <- factor(Survival$Age)
 
 #Remove the years and specific estimates that aren't any good (not enough birds
 #went into them, or we are at a boundary)
-Survival2 <- Survival %>% filter(Year !=1975 & Year!=1976 & Year!=2016 & Estimate<.9 & SE<0.2 & Year !=2011 & Age=="Recruit")
+Survival2 <- Survival %>% filter( Estimate<.9 & Age=="Recruit" & SE<0.1  & Year!=2016 & Year !=2011 )
 
 Survival2$Year2 <- (Survival2$Year-1975 )/10
 
@@ -65,65 +66,174 @@ for (i in 1:nrow(Survival2)){
 
 Survival2$SugarAcreage2 <- Survival2$SugarAcreage/ 10000
 
+ggplot(Survival2, aes(x=Year, y=Estimate))+
+  geom_point()+
+  geom_point(data=Survival2 %>%filter(Year==2010 |Year==2012 |Year==2013),aes(x=Year, y=Estimate), color="red" )+
+  geom_vline(xintercept = 1991)
+#The leverage points are the 3 years where recruitment was 0. Were those points
+#estimated properly? THey have super low SE but also rather appear to be at a
+#boundary. I suspect that they weren't and therefore I feel pretty OK about
+#removing them.
+
+
+
 #############Does winter ENSO score predict recruitment rates?
+ggplot(Survival2, aes(x=WinterENSO, y=Estimate))+
+  geom_point()+
+  #geom_smooth(se=F)+
+  #stat_smooth(method="lm", aes(group=TimePeriod), se=F)+
+  facet_grid(~TimePeriod)
+
+
+
 bmod_ENSO <- betareg(Estimate ~ WinterENSO*TimePeriod, data=Survival2, link="loglog")
 plot(bmod_ENSO) #There are a couple of outliers. 
+plot(bmod_ENSO, which = 5, type = "deviance", sub.caption = "")
+plot(bmod_ENSO, which = 1, type = "deviance", sub.caption = "")
+
 plot(resid(bmod_ENSO)~Survival2$WinterENSO)
 plot(resid(bmod_ENSO)~Survival2$TimePeriod) # We are overestimating declining. 
-which(resid(bmod_ENSO) <(-3))
+Survival2$Year[which(cooks.distance(bmod_ENSO) >(4/nrow(Survival2)))]
+
+Survival2$Year[which(resid(bmod_ENSO) <(-3))]
+
+
+dredge(bmod_ENSO)
+bmam_ENSO <- betareg(Estimate ~ WinterENSO+TimePeriod, data=Survival2, link="loglog")
 
 #Try removing leverage points
-Survival3 <- Survival2[-c(33, 35),]
-bmod_ENSO <- betareg(Estimate ~ WinterENSO*TimePeriod, data=Survival3, link="loglog")
-plot(bmod_ENSO) #Fixed that.  
-plot(resid(bmod_ENSO)~Survival3$WinterENSO)
-plot(resid(bmod_ENSO)~Survival3$TimePeriod) #That's all better now. 
+Survival3 <- Survival2[-c(33, 34, 35),]
+bmod_ENSO_noLev <- betareg(Estimate ~ WinterENSO*TimePeriod, data=Survival3, link="loglog")
+plot(bmod_ENSO_noLev) #Fixed that.  
+plot(bmod_ENSO_noLev, which = 5, type = "deviance", sub.caption = "")
+plot(bmod_ENSO_noLev, which = 1, type = "deviance", sub.caption = "")
+plot(resid(bmod_ENSO_noLev)~Survival3$WinterENSO)
+plot(resid(bmod_ENSO_noLev)~Survival3$TimePeriod) #That's all better now. 
 
 options(na.action = "na.fail")
 dredge(bmod_ENSO)
+bmam_ENSO_noLev <- betareg(Estimate ~ WinterENSO+TimePeriod, data=Survival3, link="loglog")
+
+summary(aov(bmod_ENSO))
 car::Anova(bmod_ENSO)
 
-bmam_ENSO <- betareg(Estimate ~ WinterENSO+TimePeriod, data=Survival3, link="loglog")
+bmam_ENSO_noLev <- betareg(Estimate ~ TimePeriod+WinterENSO, data=Survival3, link="loglog")
+summary(bmam_ENSO)
+summary(bmam_ENSO_noLev)
+#Effect of ENSO is the same with and without leverage, but Time Periods are more different with leverage points. 
 
-
-
+#ENSO has very little effect. 
 
 
 ################Do hurricanes predict reccruitment?
+ggplot(Survival2, aes(x=Hurricanes, y=Estimate))+
+  geom_point()+
+  stat_smooth(method="lm")+
+  facet_grid(~TimePeriod)
+#Probably not going to predict anything
+
+#Try the full dataset
 bmod_hurricane <- betareg(Estimate ~ Hurricanes*TimePeriod, data=Survival2, link="loglog")
-plot(bmod_hurricane) #There's definitely leverage
+plot(bmod_hurricane) #There's definitely leverage of those same points
+plot(bmod_hurricane, which = 5, type = "deviance", sub.caption = "") #not ideal since those leverage points are there....
+plot(bmod_hurricane, which = 1, type = "deviance", sub.caption = "")
 plot(resid(bmod_hurricane)~Survival2$Hurricanes)
 plot(resid(bmod_hurricane)~Survival2$TimePeriod) #not tip top again
 which(resid(bmod_hurricane) <(-3))
+Survival2$Year[which(resid(bmod_hurricane) <(-3))]
 
+
+#Try without the 3 leverage points (the years reccruitment was 0)
 bmod_hurricane <- betareg(Estimate ~ Hurricanes*TimePeriod, data=Survival3, link="loglog")
+plot(bmod_hurricane) #no leverage so everything looks good
+plot(bmod_hurricane, which = 5, type = "deviance", sub.caption = "") #this looks much better now
+plot(bmod_hurricane, which = 1, type = "deviance", sub.caption = "") #allgood
+
 plot(resid(bmod_hurricane)~Survival3$Hurricanes)
-plot(resid(bmod_hurricane)~Survival3$TimePeriod)
+plot(resid(bmod_hurricane)~Survival3$TimePeriod) #very good
 
 dredge(bmod_hurricane) 
 car::Anova(bmod_hurricane)
 
-bmam_hurricane <- betareg(Estimate ~ Hurricanes+TimePeriod, data=Survival3, link="loglog")
+#Hurricane really doesn't predict anything. 
+bmam_hurricane <- betareg(Estimate ~ Hurricanes+TimePeriod, data=Survival2, link="loglog")
+
+bmam_hurricane_nolev <- betareg(Estimate ~ Hurricanes+TimePeriod, data=Survival3, link="loglog")
+
+summary(bmam_hurricane)
+summary(bmam_hurricane_nolev)
+#leverage didn't really make much difference. Again kind of changes the
+#magnitude of the effect of the decline, but the effect of hurricanes is pretty
+#much the same.
 
 ##############Does sugar cane acreage predict recruitment? 
+
+ggplot(Survival2, aes(x=SugarAcreage2, y=Estimate))+
+  geom_point()+
+  geom_smooth(method="lm")+
+  geom_point(data=Survival2 %>%filter(Year==2010 |Year==2012 |Year==2013),aes(x=SugarAcreage2, y=Estimate), color="red" )+
+  facet_grid(~TimePeriod)
+
+ggplot(Survival2%>%filter(Year!=2010 &Year!=2012 &Year!=2013), aes(x=SugarAcreage2, y=Estimate))+
+  geom_point()+
+  geom_smooth(method="lm")+
+  facet_grid(~TimePeriod)
+
+#Goddamn. Sugar acreage might not matter. I really can't tell.  
+
 bmod_sugar <- betareg(Estimate ~ SugarAcreage2*TimePeriod, data=Survival2, link="loglog")
-plot(bmod_sugar) #def has outliers
-plot(resid(bmod_sugar)~Survival2$TimePeriod) #not great
-plot(resid(bmod_sugar)~Survival2$SugarAcreage2)
-which(resid(bmod_sugar)<(-3))
-#lets try removing the outliers
+plot(bmod_sugar) #def has outliers/leverage points
+plot(bmod_sugar, which = 5, type = "deviance", sub.caption = "") #this looks not ideal but not as bad as some of the others
+plot(bmod_sugar, which = 1, type = "deviance", sub.caption = "") # not good-- 3 points with very high deviance resid
+
+plot(resid(bmod_sugar)~Survival2$TimePeriod) #OK. Not perfect obv
+plot(resid(bmod_sugar)~Survival2$SugarAcreage2) #not perfect. 
+which(cooks.distance(bmod_sugar)<4/nrow(Survival2)) #here only 2010 and 2013 are very different
+
+#lets try removing the leveraage points
 bmod_sugar <- betareg(Estimate ~ SugarAcreage2*TimePeriod, data=Survival3, link="loglog")
+plot(bmod_sugar) #looks much better
+plot(bmod_sugar, which = 5, type = "deviance", sub.caption = "") #this is improved
+plot(bmod_sugar, which = 1, type = "deviance", sub.caption = "") # very good
 plot(resid(bmod_sugar)~Survival3$SugarAcreage2)
 plot(resid(bmod_sugar)~Survival3$TimePeriod)
 #Looks a lot better, althogh still not perfect. 
 
 dredge(bmod_sugar)
 car::Anova(bmod_sugar)
-bmam_sugar <- betareg(Estimate ~ SugarAcreage2*TimePeriod, data=Survival3, link="loglog")
+bmam_sugar <- betareg(Estimate ~ SugarAcreage2*TimePeriod, data=Survival2, link="loglog")
+bmam_sugar_noLev <- betareg(Estimate ~ SugarAcreage2*TimePeriod, data=Survival3, link="loglog")
+#With leverage points, sugar is important. WIthout it isn't reall
+
+summary(bmam_sugar)
+summary(bmam_sugar_noLev)
+
+
+
+
 
 ################Does the number of good days during the post-fledging period predict recruitment?
 #based on mean temp
-bmod_mean <- betareg(Estimate ~ DaysBelow18_mean*TimePeriod, data=Survival2, link="loglog")
+ggplot(Survival2, aes(x=DaysBelow18_max, y=Estimate))+
+  geom_point()+
+  geom_smooth(method="lm")+
+  geom_point(data=Survival2 %>% filter(Year==2010 |Year==2012 |Year==2013),aes(x=DaysBelow18_max, y=Estimate), color="red" )+
+  facet_grid(~TimePeriod)
+
+
+bmod_mean1 <- betareg(Estimate ~ DaysBelow18_mean*TimePeriod, data=Survival2, link="loglog")
+bmod_mean2 <- betareg(Estimate ~ DaysBelow18_mean*TimePeriod, data=Survival2, link="log")
+bmod_mean3 <- betareg(Estimate ~ DaysBelow18_mean*TimePeriod, data=Survival2, link="cloglog")
+bmod_mean4 <- betareg(Estimate ~ DaysBelow18_mean*TimePeriod, data=Survival2, link="cauchit")
+bmod_mean5 <- betareg(Estimate ~ DaysBelow18_mean*TimePeriod, data=Survival2, link="probit")
+
+AICc(bmod_mean1, bmod_mean2, bmod_mean3, bmod_mean5 ) #all the same
+summary(bmod_mean1)$pseudo.r.squared #best r2
+summary(bmod_mean2)$pseudo.r.squared 
+summary(bmod_mean3)$pseudo.r.squared 
+summary(bmod_mean5)$pseudo.r.squared
+
+
 plot(bmod_mean)
 plot(resid(bmod_mean)~Survival2$TimePeriod) #not great
 plot(resid(bmod_mean)~Survival2$DaysBelow18_mean)

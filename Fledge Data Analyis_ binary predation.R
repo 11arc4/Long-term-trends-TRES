@@ -4,18 +4,20 @@
 #higher on warm days=better shot that predators are going to get you) Do you get
 #more predation for nests when the nestlings are older (ie have higher
 #visitation rates by parents), or when the weather THAT day is warmer?
+library(tidyverse)
+library(MuMIn)
 
 #Read in the binary fledging data
 dat <- read.csv("file:///C:/Users/11arc/Documents/Masters Thesis Project/Long term trends paper/Data Files_long term trends/Binary Fledge Success wo experimental nests.csv", as.is=T, na.strings = "" ) %>% filter(Daysabove18 <10)
 dat$TimePeriod<-factor(dat$TimePeriod, levels=c("Growing", "Declining", "PostDecline"))
 
 Pred <- dat %>% filter(!is.na(Daysabove18)) #Want to use the same dataset here as later
-
+rm(dat)
 
 ########################################
 #Question: Is there less fledging success in years during the decline when you include predation? 
 
-mod_pred <- glm(Fledge2 ~ TimePeriod*Year2, family=binomial, data=Pred)
+mod_pred <- glm(Fledge2 ~ TimePeriod*Year2, family=binomial(link="cauchit"), data=Pred)
 plot(mod_pred)
 plot(resid(mod_pred)~Pred$TimePeriod)
 plot(resid(mod_pred)~Pred$Year2)

@@ -115,9 +115,9 @@ dat2$Year2 <- dat2$Year/10-197.5
 #Let me set up time periods. 
 
 dat2$TimePeriod <- NA
-dat2$TimePeriod[which(dat2$Year<1997)]<- "Growing"
-dat2$TimePeriod[which(dat2$Year>1996)]<- "Declining"
-dat2$TimePeriod[which(dat2$Year>2014)]<- "PostDecline"
+dat2$TimePeriod[which(dat2$Year<1992)]<- "Growing"
+dat2$TimePeriod[which(dat2$Year>1991)]<- "Declining"
+dat2$TimePeriod[which(dat2$Year>2013)]<- "PostDecline"
 dat2$TimePeriod <- factor(dat2$TimePeriod, levels=c("Growing", "Declining", "PostDecline"))
 
 

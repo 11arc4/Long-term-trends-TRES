@@ -8,27 +8,27 @@ library(MuMIn)
 
 Survival <- read.csv("file:///C:/Users/11arc/Documents/Masters Thesis Project/Long term trends paper/Data Files_long term trends/Yearly Survival Estimates.csv", na.strings="", as.is=T)
 
-Survival$TimePeriod <- NA
-Survival$TimePeriod[which(Survival$Year<1997)]<- "Growing"
-Survival$TimePeriod[which(Survival$Year>1996)]<- "Declining"
-#Survival$TimePeriod[which(Survival$Year>2013)]<- "PostDecline"
-Survival$TimePeriod <- factor(Survival$TimePeriod, levels=c("Growing", "Declining"))
 
+Survival$TimePeriod <- NA
+Survival$TimePeriod[which(Survival$Year<1992)]<- "Growing"
+Survival$TimePeriod[which(Survival$Year>1991)]<- "Declining"
+#Only have 1 year post decline so let's definitel not group it off seperately!
+#Survival$TimePeriod[which(Survival$Year>2014)]<- "PostDecline"
+Survival$TimePeriod <- factor(Survival$TimePeriod, levels=c("Growing", "Declining"))
 Survival$Age <- factor(Survival$Age)
+
 
 #Remove the years and specific estimates that aren't any good (not enough birds
 #went into them, or we are at a boundary), or there is no environmental data
-Survival2 <- Survival %>% filter(  Year!=2016 & Estimate<.9 & SE<0.2 & Year !=2011)
+Survival2 <- Survival %>% filter( Estimate<.9 & ((SE<0.2 & Age!="Recruit" ) |(SE<0.1 & Age=="Recruit")) & Year!=2016 & Year !=2011 )
+
 
 ggplot(Survival2, aes(x=Year, y=Estimate, color=Age))+
   geom_segment(aes(x=Year, xend=Year, y=Estimate-SE, yend=Estimate+SE, color=Age), alpha=0.6)+
   geom_point( )+
   labs(x="Year", y="Apparent Survival" )+
   ggthemes::theme_few()+
-  #geom_smooth()+
-  geom_smooth(data=Survival2 %>% filter(TimePeriod=="Growing"), aes(x=Year, y=Estimate, color=Age),method="lm")+
-  geom_smooth(data=Survival2 %>% filter(TimePeriod=="Declining"), aes(x=Year, y=Estimate, color=Age),method="lm")+
-  geom_smooth(data=Survival2 %>% filter(TimePeriod=="PostDecline"), aes(x=Year, y=Estimate, color=Age),method="lm")+
+  geom_smooth(method="lm", formula=y~x, aes(group=TimePeriod))+
   facet_grid(~Age)
 #Damn that recruitment looks a hell of a lot like the curve the population is showing......
 
@@ -37,6 +37,9 @@ Survival2$Year2 <- (Survival2$Year-1975 )/10
 
 #############################
 #Has survival declined? 
+
+
+
 mod <- lm(Estimate ~ Year2*TimePeriod*Age, data=Survival2)
 plot(mod)#Normality might be a bit of an issue......
 hist(resid(mod)) 
@@ -66,6 +69,9 @@ plot(resid(bmod)~Survival2$TimePeriod)
 #Holy shit this looks SOOOOOO much better. I think this actually fits. Amazing
 #what using the proper assumptions does!
 
+Survival2$Year[which(cooks.distance(bmod)>0.1)]
+Survival2$Age[which(cooks.distance(bmod)>0.1)]
+
 
 
 #Which link function should we use?
@@ -74,19 +80,18 @@ bmod2 <- betareg(Estimate ~ Year2*Age*TimePeriod, data=Survival2, link="loglog")
 bmod3 <- betareg(Estimate ~ Year2*Age*TimePeriod, data=Survival2, link="probit")
 bmod4 <- betareg(Estimate ~ Year2*Age*TimePeriod, data=Survival2, link="cloglog")
 #bmod5 <- betareg(Estimate ~ Year2*Age*TimePeriod, data=Survival2, link="cauchit")
-bmod6 <- betareg(Estimate ~ Year2*Age*TimePeriod, data=Survival2, link="log")
+#bmod6 <- betareg(Estimate ~ Year2*Age*TimePeriod, data=Survival2, link="log")
 
 
-AICc(bmod1, bmod2, bmod3, bmod4, bmod6) #all very similar in terms of AICc-- within 2
+AICc(bmod1, bmod2, bmod3, bmod4) #Bmod 2 is the best. 
 summary(bmod1)$pseudo.r.squared
 summary(bmod2)$pseudo.r.squared #LIKE WAYYYYYYYY better. We will use this one. 
 summary(bmod3)$pseudo.r.squared #this is a close second but not as good as bmod2-- looks like we prefer the loglog link
 summary(bmod4)$pseudo.r.squared
-summary(bmod6)$pseudo.r.squared
 
 
 options(na.action = "na.fail")
-dredge(bmod2)
+dredge(bmod) #Full model is easily the best model. 
 
 
 #Need to test significance of 3 way interaction
@@ -97,11 +102,11 @@ lmtest::lrtest(bmod2, bmod2_2)
 
 
 bmam <-  betareg(Estimate ~ Year2*Age*TimePeriod, data=Survival2, link="loglog")
-
+summary(bmam)
 
 newdata <- data.frame(Year2=rep(seq(0, 4.2, 0.1), 3),
                       Year=rep(seq(1975, 2017, 1), 3),
-                      TimePeriod=rep(c(rep("Growing", 22), rep("Declining", 21)),3),
+                      TimePeriod=c(rep("Growing", 17), rep("Declining", 26)),
                       Age = c(rep("Recruit", 43), rep("SYReturn", 43), rep("ASYReturn", 43)), 
                       predicted=NA, 
                       se=NA,
@@ -112,13 +117,13 @@ newdata$predicted <- predict(bmam, newdata, type="response")
 newdata$variance <- predict(bmam, newdata, type="variance")
 newdata$Age <- factor(newdata$Age, levels=c("Recruit", "SYReturn", "ASYReturn"))
 ggplot()+
-  geom_line(data=newdata %>% filter(TimePeriod=="Declining"), aes(x=Year, y=predicted), size=1)+
-  geom_line(data=newdata %>% filter(TimePeriod=="Growing"), aes(x=Year, y=predicted), size=1)+
-  #geom_ribbon(aes(x=Year, ymin=predicted-variance, ymax=predicted+variance, fill=Age), alpha=0.4, data=newdata)+
+  geom_line(data=newdata, aes(x=Year, y=predicted, group=TimePeriod), size=1)+
+  #geom_ribbon(aes(x=Year, ymin=predicted-variance, ymax=predicted+variance, group=TimePeriod), alpha=0.4, data=newdata)+
   #geom_segment(data=Survival2, aes(x=Year, xend=Year, y=Estimate-SE, yend=Estimate+SE) )+
   geom_point(data=Survival2, aes(x=Year, y=Estimate, color=Age), show.legend = F)+
   labs(y="Apparent Survival")+
   ggthemes::theme_few(base_size = 16)+
+  geom_vline(xintercept = 1991)+
   facet_grid(~Age)
 
 
@@ -130,7 +135,7 @@ ggplot()+
   geom_point(data=Survival2 %>% filter(Age=="Recruit"), aes(x=Year, y=Estimate), show.legend = F)+
   labs(y="Juvenile \nSurvival")+
   ggthemes::theme_few(base_size = 16)+
-  geom_vline(xintercept=1996.5)+
+  geom_vline(xintercept=1991)+
   theme(text = element_text(size=20), axis.title.y = element_text(angle=0, vjust=0.5))
 
 
@@ -143,10 +148,21 @@ ggplot()+
 #looks like Recruitment increased during the time period the population was
 #growing but tanked when the population started to decline. This looks so
 #similar to what happened to box occupancy there is just no way this isn't
-#causing it.
+#causing it. There isn't really mcuh going on with SY return or ASY return-- they aren't changing significantly through time. 
 summary(bmam)
 
 
+
+
+
+
+
+
+
+
+
+#This hasn't been corrected for the new time periods yet. 
+#########################################################
 ###############
 #Do any of the environmental varaibles that we have data for predict survival well? 
 #Load in all the environmental data
