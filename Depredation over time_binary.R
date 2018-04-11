@@ -135,17 +135,29 @@ ggplot(newdata, aes(y=predicted, x=Year2*10+1975, group=TimePeriod))+
 
 ggplot(Pred, aes(x=Daysabove18, y=Depredated))+
   geom_point()+
-  geom_smooth(method="lm")+
+  geom_smooth(method="glm", method.args= list(family=binomial(link="cauchit")))+
   facet_grid(~TimePeriod)
 
 
-
-
+mod_preddays1 <-glm(Depredated ~ Daysabove18*TimePeriod, family=binomial(link="log"), data=Pred)
+mod_preddays2 <-glm(Depredated ~ Daysabove18*TimePeriod, family=binomial(link="logit"), data=Pred)
+mod_preddays3 <-glm(Depredated ~ Daysabove18*TimePeriod, family=binomial(link="cauchit"), data=Pred)
+mod_preddays4 <-glm(Depredated ~ Daysabove18*TimePeriod, family=binomial(link="cloglog"), data=Pred)
+mod_preddays5 <-glm(Depredated ~ Daysabove18*TimePeriod, family=binomial(link="probit"), data=Pred)
+AICc(mod_preddays1, mod_preddays2, mod_preddays3, mod_preddays4, mod_preddays5)
+#Cauchit is much better. 
+library(DescTools)
+PseudoR2(mod_preddays1) 
+PseudoR2(mod_preddays2) 
+PseudoR2(mod_preddays3) 
+PseudoR2(mod_preddays4) 
+PseudoR2(mod_preddays5) 
+#Wow these are all terrible r^2 but I guess it's what we go for. 
 
 mod_preddays <-glm(Depredated ~ Daysabove18*TimePeriod, family=binomial(link="cauchit"), data=Pred)
-plot(mod_pred)
-plot(resid(mod_pred)~Pred$TimePeriod) #Not great but not really worse than before.  
-plot(resid(mod_pred)~Pred$Daysabove18)  #Looks ok
+plot(mod_preddays)
+plot(resid(mod_preddays)~Pred$TimePeriod) #Not great but not really worse than before.  
+plot(resid(mod_preddays)~Pred$Daysabove18)  #Looks ok
 
 options(na.action="na.fail")
 dredge(mod_preddays) #this one says that we cant rule out that there was no effecct of days, but the null model is slightly better
@@ -154,35 +166,25 @@ car::Anova(mod_preddays)
 mam_preddays <- glm(Depredated ~ TimePeriod+Daysabove18, family=binomial(link="cauchit"), data=Pred)
 
 
-summary(mam_preddays)
+summary(mod_preddays)
 
 
-oddsRat_days <- exp(coef(mam_preddays))
-oddsRatSE_days <- get.or.se(mam_preddays)
+oddsRat_days <- exp(coef(mod_preddays))
+oddsRatSE_days <- get.or.se(mod_preddays)
 
-newdata_days <- data.frame(Daysabove18=rep(seq(0, 9, 1),3),
-                           TimePeriod=c(rep("Growing", 10), rep("Declining", 10), rep("PostDecline", 10)),
-                           predicted_logit=NA,
-                           predicted=NA, 
-                           se_logit=NA,
-                           use=NA, 
-                           lse=NA)
+ggplot(Pred, aes(x=Daysabove18, y=Depredated))+
+  #geom_point()+
+  geom_smooth(method="glm", method.args= list(family=binomial(link="cauchit")))+
+  facet_grid(~TimePeriod)+
+  labs(x="Days of good weather during \nearly nestling development", y="Probability of depredation")+
+  ggthemes::theme_few(base_size = 14)
+#Weak trend toward less predation when there are more days with good warm
+#weather when the population was growing, but that trend goes away and there is
+#constant predation risk when the population was declining and post decline,
+#regardless of weather. I suspect this isn't really real, but if it was real,
+#perhaps it is because there are more other types of prey active when it's warm
+#but only nestlings available when it's cold.
 
-
-newdata_days$predicted_logit <- predict(mam_preddays, newdata_days, se.fit = T)$fit
-newdata_days$se_logit <- predict(mam_preddays, newdata_days, se.fit = T)$se.fit
-
-newdata_days$predicted <- arm::invlogit(newdata_days$predicted_logit)
-newdata_days$use <- arm::invlogit(newdata_days$predicted_logit+ (newdata_days$se_logit))
-newdata_days$lse <- arm::invlogit(newdata_days$predicted_logit- (newdata_days$se_logit))
-
-ggplot(newdata_days, aes(x=Daysabove18, y=predicted, fill=TimePeriod))+
-  geom_line(aes(color=TimePeriod), size=1)+
-  geom_ribbon(aes(ymin=use, ymax=lse), alpha=0.4)+
-  labs(x="Days of good weather", y="Predation rate", fill="Population \nStatus", color="Population \nStatus")+
-  ggthemes::theme_few(base_size = 16)+
-  #geom_point(data=YearSummary%>% filter(Nests>25), aes(x=MeanDaysabove18, y=RatioFledgeFail, color=TimePeriod))+
-  facet_grid(~TimePeriod)
 
 #Predation rates were much higher when the population was declining than when
 #the population wasn't growing. Weather conditions don't really play any part. 

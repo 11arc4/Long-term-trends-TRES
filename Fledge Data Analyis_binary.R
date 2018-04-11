@@ -40,8 +40,6 @@ hist(resid(mod))
 plot(resid(mod)~dat$Year2)
 plot(resid(mod)~dat$TimePeriod)
 
-#Model only fits if Hatch size isn't included. That's ok with me!
-
 car::Anova(mod)
 
 options(na.action="na.fail")
@@ -78,7 +76,6 @@ ggplot(newdata, aes(y=predicted, x=Year2*10+1975, group=TimePeriod))+
   ggthemes::theme_few(base_size = 16)+
   theme(text = element_text(size=20), axis.title.y = element_text(angle=0, vjust=0.5))
   
-
 
 
 #################################################################
@@ -123,29 +120,16 @@ get.or.se <- function(model) {
 
 oddsRatSE <- get.or.se(nopredMod3)
 
-newdata2 <- data.frame(Year2=rep(seq(0, 4.2, 0.1)),
-                       TimePeriod=c(rep("Growing", 17), rep("Declining", 23), rep("PostDecline", 3)),
-                       predicted_logit=NA,
-                      predicted=NA, 
-                      se_logit=NA,
-                      use=NA, 
-                      lse=NA)
-
-
-newdata2$predicted_logit <- predict(nopredMod3, newdata2, se.fit = T)$fit
-newdata2$se_logit <- predict(nopredMod3, newdata2, se.fit = T)$se.fit
-
-newdata2$predicted <- arm::invlogit(newdata2$predicted_logit)
-newdata2$use <- arm::invlogit(newdata2$predicted_logit+ (newdata2$se_logit))
-newdata2$lse <- arm::invlogit(newdata2$predicted_logit- (newdata2$se_logit))
-
-ggplot(newdata2, aes(y=predicted, x=Year2*10+1975, group=TimePeriod))+
-  geom_line()+
-  geom_ribbon(aes(ymin=lse, ymax=use),alpha=0.2)+
+ggplot(NoPred, aes(y=Fledge2, x=Year2*10+1975, group=TimePeriod))+
   ylim(0, 1)+
-  labs(y="Fledging Success", x="Year")+
-  geom_vline(xintercept = c(1991, 2014 ))+
-  ggthemes::theme_few(base_size = 16)
+  stat_smooth(method="glm", method.args = list(family=binomial(link="cauchit")))+
+  labs(y="Probability of \nFledging Success", x="Year")+
+  geom_vline(xintercept = c(1991, 2013 ))+
+  ggthemes::theme_few(base_size = 16)+
+  scale_x_continuous(breaks=c(1980, 1991, 2002, 2013))+
+  theme(text = element_text(size=20), axis.title.y = element_text(angle=0, vjust=0.5))
+ggsave(filename='~/Masters Thesis Project/BGRS symposium presentation/Fledging success through time Plot.jpeg', width=9, height=5, units="in", device="jpeg")
+
 
 #Yes During the decline, fledge success was lower and declined
 
@@ -193,14 +177,16 @@ newdata_days$lse <- arm::invlogit(newdata_days$predicted_logit- (newdata_days$se
 
 newdata_days$TimePeriod <- factor(newdata_days$TimePeriod, levels=c("Growing", "Declining", "PostDecline"))
 
-ggplot(newdata_days, aes(x=Daysabove18, y=predicted, fill=TimePeriod))+
-  geom_line(aes(color=TimePeriod), size=1)+
-  #geom_ribbon(aes(ymin=use, ymax=lse), alpha=0.4)+
-  labs(x="Days of good weather", y="Fledging\nSuccess", fill="Population \nStatus", color="Population \nStatus")+
-  ggthemes::theme_few(base_size = 16)+
+ggplot(newdata_days, aes(x=Daysabove18, y=predicted))+
+  geom_line(size=1, aes(group=TimePeriod))+
+  geom_ribbon(aes(ymin=use, ymax=lse, fill=TimePeriod), alpha=0.4)+
+  labs(x="Days of good weather \nduring early development", y="Fledging\nSuccess", fill="Population \nStatus", color="Population \nStatus")+
+  ggthemes::theme_few(base_size = 20)+
   theme(text = element_text(size=20), axis.title.y = element_text(angle=0, vjust=0.5))+
-  scale_color_manual(values=c("springgreen3", "firebrick3", "blue" ), labels=c("Growing", "Declining", "Post Decline"))
-  
+  scale_x_continuous(breaks=c(1, 3, 5, 7, 9))+
+  scale_fill_manual(values=c("forestgreen", "red2", "gold2"), labels=c("Growing", "Declining", "Post Decline"))
+ggsave(filename='~/Masters Thesis Project/BGRS symposium presentation/Fledging Success and weather Plot.jpeg', width=9, height=5, units="in", device="jpeg")
+
 
 #################################################################
 #Are there fewer days above 18 during vulnerable periods for non-predated nests? 
@@ -273,9 +259,12 @@ summary(mam2)
 ggplot(YearSummary, aes(y=MeanDaysabove18, x=Year))+
   geom_point()+
   geom_smooth(method="lm", color="black")+
-  labs(y="Mean days of\ngood weather", y="Year")+
-  ggthemes::theme_few(base_size = 16)+
+  labs(y="Mean days of\ngood weather", x="Year")+
+  ggthemes::theme_few(base_size = 20)+
   theme(text = element_text(size=20), axis.title.y = element_text(angle=0, vjust=0.5))
+
+ggsave(filename='~/Masters Thesis Project/BGRS symposium presentation/Weather through time plot.jpeg', width=7, height=5, units="in", device="jpeg")
+
   
 
 

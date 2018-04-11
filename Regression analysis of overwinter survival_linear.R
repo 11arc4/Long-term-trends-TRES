@@ -104,12 +104,22 @@ summary(modRecruit)
 
 
 
+
+Survival2$Age <- factor(Survival2$Age, levels=c("Recruit", "SYReturn", "ASYReturn"))
+Age_names <- c(`Recruit`="Juvenile", 
+                `ASYReturn`="Older Female", 
+                `SYReturn`="1-yr-old Female")
+
 ggplot(Survival2, aes(x=Year, y=Estimate))+
-  geom_point()+
-  stat_smooth(data=Survival2%>% filter(Age=="Recruit"), method="lm", formula=y~x, aes(group=TimePeriod))+
-  facet_grid(.~Age)+
-  labs(x="Year", y="Survival")+
-  ggthemes::theme_few()
+  geom_point(aes(color=Age), show.legend=F, size=2)+
+  stat_smooth(data=Survival2%>% filter(Age=="Recruit"), method="lm", formula=y~x, aes(group=TimePeriod), color="black")+
+  facet_grid(.~Age, labeller=labeller(Age=as_labeller(Age_names)))+
+  labs(x="Year", y="Survival \nOverwinter")+
+  ggthemes::theme_few(base_size = 22)+
+  theme(axis.title.y=element_text(angle=0, vjust=0.5))+
+  scale_color_manual(values=c("azure4", "burlywood4", "deepskyblue4"))
+ggsave(filename='~/Masters Thesis Project/BGRS symposium presentation/Overwinter Survival Plot.jpeg', width=12, height=6, units="in", device="jpeg")
+
 
 
 
