@@ -40,13 +40,16 @@ hist(resid(mod))
 plot(resid(mod)~dat$Year2)
 plot(resid(mod)~dat$TimePeriod)
 
-car::Anova(mod)
 
 options(na.action="na.fail")
 dredge(mod) #need all terms. 
 
+summary(aov(mod)) #not good for binomial
+#Better options
+car::Anova(mod)
+anova(mod, test="Chisq")
+#beta values
 summary(mod)
-summary(aov(mod))
 
 
 #Yes! This is fantastic. It finally looks like our data is 
@@ -102,8 +105,15 @@ NoPred$TimePeriod<- factor(NoPred$TimePeriod, levels=c("Declining", "Growing", "
 plot(nopredMod3)
 plot(resid(nopredMod3)~NoPred$Year2)
 plot(resid(nopredMod3)~NoPred$TimePeriod) #Looks pretty good to me overall
-car::Anova(nopredMod3)
+
+#Not very good to use F stats for a binomial GLM because probably doesn't follow
+#F distribution
 summary(aov(nopredMod3))
+#Very likely DOES follow a chisq distribution though so we will report those stats
+car::Anova(nopredMod3)
+anova(nopredMod3, test="Chisq")
+
+
 dredge(nopredMod3)
 summary(nopredMod3)
 #definitely need the full model
@@ -145,9 +155,15 @@ plot(resid(daysMod_nopred)~NoPred$Daysabove18)
 #Looks ok
 
 dredge(daysMod_nopred)
-car::Anova(daysMod_nopred)
-summary(mamdaysMod_nopred)
+
+#Don't use the F stat
 summary(aov(daysMod_nopred))  
+
+#Use the chisq instead
+car::Anova(daysMod_nopred)
+anova(daysMod_nopred, test="Chisq")
+
+summary(mamdaysMod_nopred)
 summary(daysMod_nopred)
 
 mamdaysMod_nopred <- glm(Fledge2 ~  TimePeriod+Daysabove18, family=binomial(link="cauchit"), data=NoPred)

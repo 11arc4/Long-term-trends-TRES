@@ -2,6 +2,13 @@
 library(tidyverse)
 library(MuMIn)
 library(car)
+get.or.se <- function(model) {
+  broom::tidy(model) %>% 
+    mutate(or = exp(estimate),
+           var.diag = diag(vcov(model)),
+           or.se = sqrt(or^2 * var.diag)) %>%
+    select(or.se) %>% unlist %>% unname
+}
 #Read in the binary fledging data
 dat <- read.csv("file:///C:/Users/11arc/Documents/Masters Thesis Project/Long term trends paper/Data Files_long term trends/Binary Fledge Success wo experimental nests.csv", as.is=T, na.strings = "" ) %>% filter(Daysabove18 <10)
 dat$TimePeriod<-factor(dat$TimePeriod, levels=c("Growing", "Declining", "PostDecline"))
@@ -82,20 +89,15 @@ plot(resid(mod_pred)~Pred$Year2) #Think it's not so bad. Not perfect but not so 
 
 options(na.action="na.fail")
 dredge(mod_pred)
-summary(mod_pred) #these summary estimates will differ depending on what you're comparing and what level is the default. DOn't worry
+#Shouldn't report these F stats since it's a binomal GLM. 
 summary(aov(mod_pred))
+#Better to report the chi squared, which can come from either of these places
+car::Anova(mod_pred)
+anova(mod_pred, test="Chisq")
 
-
-
+#OR and beta values for reporting. 
+summary(mod_pred) #these summary estimates will differ depending on what you're comparing and what level is the default. DOn't worry
 oddsRat <- exp(coef(mod_pred))
-get.or.se <- function(model) {
-  broom::tidy(model) %>% 
-    mutate(or = exp(estimate),
-           var.diag = diag(vcov(model)),
-           or.se = sqrt(or^2 * var.diag)) %>%
-    select(or.se) %>% unlist %>% unname
-}
-
 oddsRatSE <- get.or.se(mod_pred)
 
 
@@ -136,6 +138,7 @@ ggplot(newdata, aes(y=predicted, x=Year2*10+1975, group=TimePeriod))+
 ggplot(Pred, aes(x=Daysabove18, y=Depredated))+
   geom_point()+
   geom_smooth(method="glm", method.args= list(family=binomial(link="cauchit")))+
+  stat_smooth(method="loess")+
   facet_grid(~TimePeriod)
 
 
@@ -155,20 +158,26 @@ PseudoR2(mod_preddays5)
 #Wow these are all terrible r^2 but I guess it's what we go for. 
 
 mod_preddays <-glm(Depredated ~ Daysabove18*TimePeriod, family=binomial(link="cauchit"), data=Pred)
-plot(mod_preddays)
+plot(mod_preddays) #There are a couple of points with leverage
 plot(resid(mod_preddays)~Pred$TimePeriod) #Not great but not really worse than before.  
 plot(resid(mod_preddays)~Pred$Daysabove18)  #Looks ok
 
+#Pred2 <- Pred[-which(cooks.distance(mod_preddays)>0.02),]
+#mod_preddays2 <-glm(Depredated ~ Daysabove18*TimePeriod, family=binomial(link="cauchit"), data=Pred2)
+# #None of this is driven by influential points, much as I suspected. It is just a real effect. 
+
 options(na.action="na.fail")
 dredge(mod_preddays) #this one says that we cant rule out that there was no effecct of days, but the null model is slightly better
-summary(aov(mod_preddays)) #this says we shoudl only keep time period. 
+#this says we shoudl only keep time period but it is reporting F stats and since
+#we have a binimial, we should report chi squared and deviance instead
+summary(aov(mod_preddays)) 
+#either of these report the chi squared/ deviance and are equivalent. THis is
+#what we should report
 car::Anova(mod_preddays)
-mam_preddays <- glm(Depredated ~ TimePeriod+Daysabove18, family=binomial(link="cauchit"), data=Pred)
+anova(mod_preddays, type="Chisq")
 
-
+#Here are our beta values and OR
 summary(mod_preddays)
-
-
 oddsRat_days <- exp(coef(mod_preddays))
 oddsRatSE_days <- get.or.se(mod_preddays)
 
@@ -199,7 +208,7 @@ YearSummary <- Pred %>%
   summarise(MeanHatchDate=mean(HatchDate), 
             MeanDaysabove18= mean(Daysabove18, na.rm=T), 
             Daysabove18_2 = NA,
-            RatioFledgeFail= sum(Depredated>0)/length(Depredated),
+            RatioFledgePred= sum(Depredated>0)/length(Depredated),
             Year=NA, 
             Nests=length(Depredated)) 
 
@@ -238,3 +247,10 @@ calculateDaysabove18 <- function(HatchDate, Year){
     return(length(which(weatherPoik$MaxTemp>18.5 & weatherPoik$TotRain==0)))
   }
 }
+
+
+
+ggplot(YearSummary %>% filter(Nests>10), aes(x=MeanDaysabove18, y=RatioFledgePred))+
+  geom_point()+
+  facet_grid(~TimePeriod)+
+  geom_smooth(method="lm")
