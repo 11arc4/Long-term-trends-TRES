@@ -55,7 +55,10 @@ plot(resid(modASY)~ASYSurvival2$TimePeriod)
 options(na.action="na.fail")
 dredge(modASY)
 #Null model is the best. No changes over time, even just time period
+anova(modASY, test="F")
+summary(aov(modASY))
 
+summary(modASY)
 
 ################Does SY survival decline?
 SYSurvival2 <- Survival2 %>% filter(Age=="SYReturn")
@@ -70,10 +73,12 @@ plot(resid(modSY)~SYSurvival2$TimePeriod)
 
 #Hmmmm SY doesn't fit great. Resids aren't normal. They're definitely the
 #problem. Does logging help? Yes. WHen we log it seems to be acceptable.
+#although still not exactly perfect.
 
 options(na.action="na.fail")
 dredge(modSY)
 summary(aov(modSY))
+anova(modSY, test="F")
 #Similar to ASY, there isn't really any strong evidence for changing SY return
 #rates, and if there was, it looks like SYs are coming back slightly more
 
@@ -93,6 +98,7 @@ plot(resid(modRecruit)~RecruitSurvival2$TimePeriod)
 options(na.action="na.fail")
 dredge(modRecruit)
 summary(aov(modRecruit))
+anova(modRecruit, test="F")
 #Recruitment is changing across time
 
 summary(modRecruit)

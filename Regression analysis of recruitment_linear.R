@@ -65,6 +65,8 @@ for (i in 1:nrow(Survival2)){
 }
 
 Survival2$SugarAcreage2 <- Survival2$SugarAcreage/ 10000
+Survival2$DaysAbove18_max <- 28-Survival2$DaysBelow18_max
+
 
 ggplot(Survival2, aes(x=Year, y=Estimate))+
   geom_point()+
@@ -96,24 +98,25 @@ plot(resid(mod_ENSO)~Survival2$TimePeriod)
 #THis really looks like maybe it fits good! Residuals appear normal and there are no leverage points. 
 
 summary(aov(mod_ENSO))
-car::Anova(mod_ENSO)
+anova(mod_ENSO, test="F")
 dredge(mod_ENSO)
 
 mam_ENSO <- lm(Recruitment ~ WinterENSO+TimePeriod, data=Survival2)
 summary(mam_ENSO)
 
+
+
 ggplot(Survival2, aes(x=WinterENSO, y=Recruitment))+
   geom_point()+
+  geom_line(aes(x=WinterENSO, y=predict(mam_ENSO), color=TimePeriod))+
   #geom_smooth(se=F)+
-  stat_smooth(method="lm", se=F)+
   facet_grid(~TimePeriod)
 
 
 #Does sugar acreage predict recruitment?
 ggplot(Survival2, aes(x=SugarAcreage2, y=Recruitment))+
   geom_point()+
-  stat_smooth(method="lm", se=F)+
-  facet_grid(~TimePeriod)
+  stat_smooth(method="lm", se=F)
 #This looks like it probably won't show anything but we will see. 
 
 mod_sugar <- lm(Recruitment ~ SugarAcreage2*TimePeriod, data=Survival2)
@@ -125,12 +128,11 @@ plot(resid(mod_sugar)~Survival2$SugarAcreage2)
 #This all looks ok. we aren't violating assumptions and appear to predict things pretty well. 
 
 dredge(mod_sugar)
-summary(aov(mod_sugar))
+anova(mod_sugar, test="F")
 summary(mod_sugar)
-car::Anova(mod_sugar)
 
 #sugar acreage isn't a good predictor, but the best model with it in there is this
-mam_sugar <- lm(Recruitment ~ SugarAcreage2 + TimePeriod, data=Survival2)
+mam_sugar <- lm(Recruitment ~ TimePeriod, data=Survival2)
 summary(mam_sugar)
 
 
@@ -149,44 +151,53 @@ plot(resid(mod_hurricane)~Survival2$Hurricanes)
 
 dredge(mod_hurricane)
 summary(aov(mod_hurricane))
-car::Anova(mod_hurricane)
-
+anova(mod_hurricane, test="F")
 #hurricanes are shitty predictors. Time period alone is better
-mam_hurricanes <- lm(Recruitment ~ TimePeriod+Hurricanes, data=Survival2)
-summary(mam_hurricanes)
 
 #Does days where the max temp stays below 18 or it rains post fledging predict recruitment?
-ggplot(Survival2, aes(x=DaysBelow18_max, y=Recruitment))+
+ggplot(Survival2, aes(x=DaysAbove18_max, y=Recruitment))+
   geom_point()+
-  stat_smooth(method="lm", se=F)+
+  geom_line(aes(x=DaysAbove18_max, y=predict(mam_days)))+
+  #stat_smooth(method="lm", se=T)+
   facet_grid(~TimePeriod)
+
 #Probably not going to really predict much. 
 
-mod_days <- lm(Recruitment~DaysBelow18_max*TimePeriod, data=Survival2)
+Survival3 <- Survival2[-c(2,14),]
+mod_days <- lm(Recruitment~DaysAbove18_max*TimePeriod, data=Survival2)
 plot(mod_days)
 hist(resid(mod_days))
 shapiro.test(resid(mod_days))
-plot(resid(mod_days)~Survival2$DaysBelow18_max)
+plot(resid(mod_days)~Survival2$DaysAbove18_max)
 plot(resid(mod_days)~Survival2$TimePeriod)
 #All looks good
 
 dredge(mod_days)
 summary(aov(mod_days))
-car::Anova(mod_days)
-anova(mod_days)
+anova(mod_days, test="F")
 
-mam_days <- lm(Recruitment~DaysBelow18_max+TimePeriod, data=Survival2)
+summary(mod_days)
+Survival2$TimePeriod <- factor(Survival2$TimePeriod, levels=c("Declining", "Growing"))
 
+mam_days_nolev <- lm(Recruitment~DaysAbove18_max+TimePeriod, data=Survival3)
+mam_days <- lm(Recruitment~DaysAbove18_max*TimePeriod, data=Survival2)
+summary(mam_days)
+summary(mam_days_nolev)
+
+#The leverage really does NOTHING to the line. 
 
 #
 
 mam_null <- lm(Recruitment~TimePeriod, data=Survival2)
-AICc(mam_ENSO, mam_sugar, mam_hurricanes, mam_days, mam_null)
 
 
+AICcTable <- AICc(mam_ENSO, mam_sugar, mam_days, mam_null)
+AICcTable$Delta <- AICcTable$AICc-AICcTable$AICc[1]
 
-#What about if we combined all the best bits?
-mod_all <- lm(Recruitment~TimePeriod+WinterENSO+SugarAcreage2+Hurricanes+DaysBelow18_max, data=Survival2)
+#What about if we combined all the best bits? These things change substantially
+#based on what we count as important bits to include. I don't really feel super
+#comfortable doing this.
+mod_all <- lm(Recruitment~WinterENSO+SugarAcreage2+DaysBelow18_max+TimePeriod, data=Survival2)
 plot(mod_all)
 hist(resid(mod_all))
 shapiro.test(resid(mod_all))
@@ -197,8 +208,9 @@ plot(resid(mod_all)~Survival2$WinterENSO)
 plot(resid(mod_all)~Survival2$DaysBelow18_max)
 
 dredge(mod_all)
-summary(aov(mod_all))
-car::Anova(mod_all)
+anova(mod_all, test="F")
+#These don't agree at all. I suspect this is because they 
+
 summary(mod_all)
 
 mam_all <- lm(Recruitment~TimePeriod+SugarAcreage2+Hurricanes, data=Survival2)
@@ -225,3 +237,48 @@ scatter3d(formula= Recruitment ~SugarAcreage2 + Hurricanes, data=Survival2 %>% f
 
 
 
+#Have the important weather variables changed overtime? 
+
+#WinterENSO
+ggplot(ENSOdat, aes(x=Year, y=ENSOWinter))+
+  geom_point()
+
+ENSOdat$TimePeriod <- "Growing"
+ENSOdat$TimePeriod[ENSOdat$Year>1991] <- "Declining"
+ENSOdat$TimePeriod <- factor(ENSOdat$TimePeriod)
+ENSOdat2 <- ENSOdat %>% filter(Year>=1975)
+modENSO <- lm(ENSOWinter ~Year*TimePeriod, data=ENSOdat2)
+plot(modENSO)
+hist(resid(modENSO)) #Not ideal but really not so bad
+shapiro.test(resid(modENSO))
+plot(resid(modENSO)~ENSOdat2$Year)
+plot(resid(modENSO)~ENSOdat2$TimePeriod) #There's more variance when the population is declinng. 
+
+dredge(modENSO)
+anova(modENSO, test="F")
+#There really have been no changes in ENSO over the time we've been looking. 
+
+
+YearlyFledge$DaysAbove18 <- 28-YearlyFledge$DaysBelow18_max
+YearlyFledge$TimePeriod <- "Growing"
+YearlyFledge$TimePeriod[YearlyFledge$Year>1991]<- "Declining"
+YearlyFledge$TimePeriod<- factor(YearlyFledge$TimePeriod)
+YearlyFledge$Year2 <- (YearlyFledge$Year-1975)/10
+
+YearlyFledge2 <- YearlyFledge%>% filter(!is.na(DaysAbove18))
+ggplot(YearlyFledge2, aes(x=Year, y=DaysAbove18))+
+  geom_point()+
+  stat_smooth(method="lm")
+
+modGooddays <- lm(DaysAbove18~TimePeriod*Year2, data=YearlyFledge2)
+plot(modGooddays)
+hist(resid(modGooddays))
+shapiro.test(resid(modGooddays))
+plot(resid(modGooddays)~YearlyFledge2$Year)
+plot(resid(modGooddays)~YearlyFledge2$TimePeriod)
+dredge(modGooddays)
+anova(modGooddays, test="F")
+
+mamgooddays <- lm(DaysAbove18~Year2, data=YearlyFledge2)
+summary(mamgooddays)
+anova(mamgooddays, test="F")
