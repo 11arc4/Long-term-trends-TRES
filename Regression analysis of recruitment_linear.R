@@ -343,7 +343,7 @@ ggdraw() +
   draw_plot(PanelC, x = .5, y = 0.3, width = .5, height = .3) +
   draw_plot(PanelD, x = 0, y = 0, width = .5, height = .3) +
   draw_plot(PanelE, x = .5, y = 0, width = .5, height = .3) +
-  draw_plot_label(label = c("A", "B", "C", "D", "E"), size = 20,
+  draw_plot_label(label = c("a", "b", "d", "c", "e"), size = 20,
                   x = c(0, 0, 0.5, 0, 0.5), y = c(1, 0.6, 0.6, 0.3, 0.3), family="serif")
 
 ggsave(filename='~/Masters Thesis Project/Long term trends paper/Plots for paper/Overwinter Survival plot.jpeg', width=8, height=10, units="in", device="jpeg")
