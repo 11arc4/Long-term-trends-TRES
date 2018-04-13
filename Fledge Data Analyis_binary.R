@@ -141,6 +141,18 @@ ggplot(NoPred, aes(y=Fledge2, x=Year2*10+1975, group=TimePeriod))+
 ggsave(filename='~/Masters Thesis Project/BGRS symposium presentation/Fledging success through time Plot.jpeg', width=9, height=5, units="in", device="jpeg")
 
 
+
+PanelA <- ggplot(NoPred, aes(y=Fledge2, x=Year2*10+1975, group=TimePeriod))+
+  ylim(0, 1)+
+  stat_smooth(method="glm", method.args = list(family=binomial(link="cauchit")), color="black")+
+  labs(y="Probability of \nFledging Success", x="Year")+
+  geom_vline(xintercept = c(1991, 2013 ), linetype="dashed")+
+  ggthemes::theme_few(base_size = 16, base_family = "serif")+
+  scale_x_continuous(breaks=c(1980, 1991, 2002, 2013))
+
+
+
+
 #Yes During the decline, fledge success was lower and declined
 
 #################################################################
@@ -204,11 +216,21 @@ ggplot(newdata_days, aes(x=Daysabove18, y=predicted))+
 ggsave(filename='~/Masters Thesis Project/BGRS symposium presentation/Fledging Success and weather Plot.jpeg', width=9, height=5, units="in", device="jpeg")
 
 
+PanelB <- ggplot(newdata_days, aes(x=Daysabove18, y=predicted))+
+  geom_line(size=1, aes(group=TimePeriod))+
+  geom_ribbon(aes(ymin=use, ymax=lse, fill=TimePeriod), alpha=0.4)+
+  labs(x="Days of good weather", y="Probability of \nFledging Success", fill="", color="Population \nStatus")+
+  ggthemes::theme_few(base_size = 16, base_family = "serif")+
+  theme(legend.position = c(0.85, 0.3), legend.background = element_rect(fill=alpha('white', 0)))+
+  scale_x_continuous(breaks=c(1, 3, 5, 7, 9))+
+  scale_fill_grey(labels=c("Growing", "Declining", "Post-decline"))
+PanelB
+
 #################################################################
 #Are there fewer days above 18 during vulnerable periods for non-predated nests? 
 #Calculate the mean days above 18 for nests in each year. 
 
-YearSummary <- NoPred %>% 
+YearSummary <- dat %>% 
   group_by(Year2, TimePeriod) %>% 
   summarise(MeanHatchDate=mean(HatchDate), 
             MeanDaysabove18= mean(Daysabove18, na.rm=T), 
@@ -217,43 +239,6 @@ YearSummary <- NoPred %>%
             Year=NA) 
 
 YearSummary$Year <- YearSummary$Year2*10+1975
-
-
-
-weather_pre <- read.csv("file:///C:/Users/11arc/Documents/Masters Thesis Project/Environmental Datasets/Hartington IHD Weather Station Daily Data 1975 to  2017.csv", as.is=T)
-weather <- weather_pre[26:nrow(weather_pre), c(1,2,6,8,10,12,14,16,18)]
-rm(weather_pre)
-colnames(weather) <- c("Date", "Year",  
-                       "MaxTemp", "MinTemp", "MeanTemp", "HeatDegDays", "CoolDegDays", "TotRain", "TotPrecip") 
-
-weather$JDate <- lubridate::yday(as.Date(weather$Date, format="%m/%d/%Y"))
-weather$MeanTemp <- as.numeric(weather$MeanTemp)
-weather$MaxTemp <- as.numeric(weather$MaxTemp)
-
-
-for (i in 1:nrow(YearSummary)){
-  YearSummary$Daysabove18_2[i]<- calculateDaysabove18(HatchDate = YearSummary$MeanHatchDate[i], Year=YearSummary$Year[i])
-}
-
-
-
-
-calculateDaysabove18 <- function(HatchDate, Year){
-  if(is.na(HatchDate)){
-    return(NA)
-  }
-  weatherPoik <- weather[which(Year==weather$Year & weather$JDate>=HatchDate & weather$JDate<(HatchDate+9)),c(3, 8)]
-  if (anyNA(weatherPoik)){
-    #if we are missing data for any of the days, then we'll just return NA
-    return(NA)
-  } else {
-    #how many of those days were warm enough for insects, and not raining (more than 1mm)
-    return(length(which(weatherPoik$MaxTemp>18.5 & weatherPoik$TotRain==0)))
-  }
-}
-
-
-
 
 
 YearSummary$TimePeriod <- factor(YearSummary$TimePeriod, levels=c("Growing", "Declining", "PostDecline"))
@@ -270,6 +255,7 @@ summary(aov(mod2))
 
 mam2 <- lm(MeanDaysabove18~Year2, data=YearSummary)
 summary(mam2)
+anova(mam2, test="F")
 #We are seeing that MeanDaysabove 18 is declining across time, consistantly not differnt through time periods
 
 ggplot(YearSummary, aes(y=MeanDaysabove18, x=Year))+
@@ -283,4 +269,16 @@ ggsave(filename='~/Masters Thesis Project/BGRS symposium presentation/Weather th
 
   
 
+ViewPortB <- ggplot(YearSummary, aes(y=MeanDaysabove18, x=Year))+
+  geom_point()+
+  geom_smooth(method="lm", color="black")+
+  labs(y="Mean days of \ngood weather", x="Year")+
+  ggthemes::theme_few(base_size = 16, base_family = "serif")
 
+
+
+library(cowplot)
+
+
+plot_grid(PanelA, PanelB,ViewPortB, nrow=3, ncol=1, labels=c("a", "b", "c"), label_size = 20, label_fontfamily = "serif")
+ggsave(filename='~/Masters Thesis Project/Long term trends paper/Plots for paper/Fledging plot.jpeg', width=5, height=9, units="in", device="jpeg")

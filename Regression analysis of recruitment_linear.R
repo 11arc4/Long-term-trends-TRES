@@ -9,7 +9,7 @@ library(MuMIn)
 library(tidyverse)
 
 ############MAKE THE DATA
-Survival <- read.csv("file:///C:/Users/11arc/Documents/Masters Thesis Project/Long term trends paper/Data Files_long term trends/Yearly Survival Estimates.csv", na.strings="", as.is=T) %>% filter(Age=="Recruit")
+Survival <- read.csv("file:///C:/Users/11arc/Documents/Masters Thesis Project/Long term trends paper/Data Files_long term trends/Yearly Survival Estimates.csv", na.strings="", as.is=T)
 
 Survival$TimePeriod <- NA
 Survival$TimePeriod[which(Survival$Year<1992)]<- "Growing"
@@ -282,3 +282,72 @@ anova(modGooddays, test="F")
 mamgooddays <- lm(DaysAbove18~Year2, data=YearlyFledge2)
 summary(mamgooddays)
 anova(mamgooddays, test="F")
+
+
+
+
+
+
+
+
+#################
+#Let's make the publication quality composite plot. 
+Survival3 <- Survival %>% filter( Estimate<.9 & ((SE<0.2 & Age!="Recruit" ) |(SE<0.1 & Age=="Recruit")) & Year!=2016 & Year !=2011 )
+Survival3$Age <- factor(Survival3$Age, levels = c("Recruit", "SYReturn", "ASYReturn"))
+PanelA <- ggplot(Survival3, aes(x=Year, y=Estimate*100))+
+  geom_point()+
+  facet_grid(~Age, labeller=as_labeller(c(`Recruit`="Juvenile", `SYReturn`="One-year-old", `ASYReturn`= "Older")))+
+  stat_smooth(data=Survival3%>% filter(Age=="Recruit"), method="lm", aes(group=TimePeriod), color="black")+
+  labs(x="Year", y="Overwinter survival (%)")+
+  ggthemes::theme_few(base_size = 16, base_family = "serif")
+PanelA
+
+
+predict(mam_ENSO, se=T)$se.fit
+
+PanelB <- ggplot(Survival2, aes(x=WinterENSO, y=Recruitment))+
+  geom_point()+
+  labs(y="Juvenile overwinter \nsurvival (%)", x="Mean ENSO (Dec-Mar)")+
+  ggthemes::theme_few(base_size = 16, base_family = "serif")+
+  geom_line(aes(x=WinterENSO, y=predict(mam_ENSO)))+
+  geom_ribbon(aes(x=WinterENSO, ymin=predict(mam_ENSO)-1.96*predict(mam_ENSO,se=T)$se.fit, ymax=predict(mam_ENSO)+1.96*predict(mam_ENSO,se=T)$se.fit), alpha=0.2)+
+  facet_grid(~TimePeriod)
+PanelB
+
+PanelC <- ggplot(Survival2, aes(x=DaysAbove18_max, y=Recruitment))+
+  geom_point()+
+  labs(y="Juvenile overwinter \nsurvival (%)", x="Mean days of good \nweather post-fledging")+
+  ggthemes::theme_few(base_size = 16, base_family = "serif")+
+  stat_smooth(method="lm", color="black")+
+  facet_grid(~TimePeriod)
+PanelC
+
+
+PanelD <- ggplot(ENSOdat, aes(x=Year, y=ENSOWinter))+
+  geom_point()+
+  labs(x="Year", y="Mean ENSO \n(Dec-Mar)")+
+  ggthemes::theme_few(base_size = 16, base_family = "serif")
+PanelD
+
+PanelE <- ggplot(YearlyFledge, aes(x=Year, y=28-DaysBelow18_max))+
+  geom_point()+
+  labs(x="Year", y="Mean days of good \nweather post-fledging")+
+  stat_smooth(method="lm", formula=y~x, color="black")+
+  ggthemes::theme_few(base_size = 16, base_family = "serif")
+PanelE
+
+library(cowplot)
+ggdraw() +
+  draw_plot(PanelA, x = 0, y = .6, width = 1, height = .4) +
+  draw_plot(PanelB, x = 0, y = 0.3, width = .5, height = .3) +
+  draw_plot(PanelC, x = .5, y = 0.3, width = .5, height = .3) +
+  draw_plot(PanelD, x = 0, y = 0, width = .5, height = .3) +
+  draw_plot(PanelE, x = .5, y = 0, width = .5, height = .3) +
+  draw_plot_label(label = c("A", "B", "C", "D", "E"), size = 20,
+                  x = c(0, 0, 0.5, 0, 0.5), y = c(1, 0.6, 0.6, 0.3, 0.3), family="serif")
+
+ggsave(filename='~/Masters Thesis Project/Long term trends paper/Plots for paper/Overwinter Survival plot.jpeg', width=8, height=10, units="in", device="jpeg")
+
+
+
+

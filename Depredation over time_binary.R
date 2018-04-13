@@ -101,32 +101,14 @@ oddsRat <- exp(coef(mod_pred))
 oddsRatSE <- get.or.se(mod_pred)
 
 
-newdata <- data.frame(Year2=rep(seq(0, 4.2, 0.1)),
-                      TimePeriod=c(rep("Growing", 17), rep("Declining", 23), rep("PostDecline", 3)),
-                      predicted_logit=NA,
-                      predicted=NA, 
-                      se_logit=NA,
-                      use=NA, 
-                      lse=NA)
 
-
-newdata$predicted_logit <- predict(mod_pred, newdata, se.fit = T)$fit
-newdata$se_logit <- predict(mod_pred, newdata, se.fit = T)$se.fit
-
-newdata$predicted <- arm::invlogit(newdata$predicted_logit)
-newdata$use <- arm::invlogit(newdata$predicted_logit+ (newdata$se_logit))
-newdata$lse <- arm::invlogit(newdata$predicted_logit- (newdata$se_logit))
-
-ggplot(newdata, aes(y=predicted, x=Year2*10+1975, group=TimePeriod))+
-  geom_line()+
-  geom_ribbon(aes(ymin=lse, ymax=use),alpha=0.2)+
-  #ylim(0, 1)+
+ggplot(Pred, aes(y=as.numeric(Depredated), x=Year2*10+1975))+
   labs(y="Predation Rate", x="Year")+
-  geom_vline(xintercept = c(1991, 2014 ))+
-  geom_vline(xintercept = 1998, color="darkgreen", size=2)+ #In 1998, ratsnakes got  listed. 
-  ggthemes::theme_few(base_size = 16)
-  #geom_point(data=PredationSummary, aes(x=Year, y=RatioPred))
-
+  stat_smooth(method="glm", method.args = list(family=binomial(link="cauchit")), aes(group=TimePeriod), color="black")+
+  geom_vline(xintercept = c(1991, 2014), linetype="dashed")+
+  #geom_vline(xintercept = 1998, color="darkgreen", size=2)+ #In 1998, ratsnakes got  listed. 
+  ggthemes::theme_few(base_size = 16, base_family = "serif")
+ggsave(filename='~/Masters Thesis Project/Long term trends paper/Plots for paper/Predation plot.jpeg', width=5, height=3, units="in", device="jpeg")
 #Predation rate was high and growing during the time period while the population
 #was crashing. I feel pretty good with this model. It seems to match the data pretty well. 
 
@@ -186,7 +168,7 @@ ggplot(Pred, aes(x=Daysabove18, y=Depredated))+
   geom_smooth(method="glm", method.args= list(family=binomial(link="cauchit")))+
   facet_grid(~TimePeriod)+
   labs(x="Days of good weather during \nearly nestling development", y="Probability of depredation")+
-  ggthemes::theme_few(base_size = 14)
+  ggthemes::theme_few(base_size = 16, base_family = "serif")
 #Weak trend toward less predation when there are more days with good warm
 #weather when the population was growing, but that trend goes away and there is
 #constant predation risk when the population was declining and post decline,
