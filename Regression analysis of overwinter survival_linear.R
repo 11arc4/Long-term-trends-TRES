@@ -112,6 +112,8 @@ summary(modRecruit)
 
 
 Survival2$Age <- factor(Survival2$Age, levels=c("Recruit", "SYReturn", "ASYReturn"))
+Survival2$Age <- factor(Survival2$Age, levels=c("ASYReturn", "SYReturn", "Recruit"))
+
 Age_names <- c(`Recruit`="Juvenile", 
                 `ASYReturn`="Older Female", 
                 `SYReturn`="1-yr-old Female")
