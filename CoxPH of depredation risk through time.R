@@ -103,18 +103,15 @@ library(MuMIn)
 # 
 # 
 # depreddat$TimePeriod <- NA
-# depreddat$TimePeriod[which(depreddat$Year<1997)]<- "Growing"
-# depreddat$TimePeriod[which(depreddat$Year>1996)]<- "Declining"
+# depreddat$TimePeriod[which(depreddat$Year<1992)]<- "Growing"
+# depreddat$TimePeriod[which(depreddat$Year>1991)]<- "Declining"
 # depreddat$TimePeriod[which(depreddat$Year>2013)]<- "PostDecline"
 # depreddat$TimePeriod <- factor(depreddat$TimePeriod, levels=c("Growing", "Declining", "PostDecline"))
 # 
-# depreddat2 <- depreddat %>% filter(!is.na(TotRain) & !is.na(MeanTemp))
-# depreddat2$TotRain2 <- 0
-# depreddat2$TotRain2[depreddat2$TotRain>0]<- 1 #Need to code it like this to let the model converge.
 # 
 # 
 # write.csv(depreddat, file= "file:///C:/Users/11arc/Documents/Masters Thesis Project/Long term trends paper/Data Files_long term trends/CoxPH depredation data.csv", na="", row.names = F)
-# 
+
 
 
 depreddat <- read.csv("file:///C:/Users/11arc/Documents/Masters Thesis Project/Long term trends paper/Data Files_long term trends/CoxPH depredation data.csv", na.strings="", as.is = T)
@@ -122,6 +119,12 @@ depreddat$Age2 <- factor(depreddat$Age2, levels=c("Poikilotherm", "Intermediate"
 depreddat$TimePeriod <- factor(depreddat$TimePeriod, levels=c("Growing", "Declining", "PostDecline"))
 
 depreddat2 <- depreddat %>% filter(!is.na(MaxTemp) & !is.na(PC1))
+depreddat2$TotRain2 <- 0
+depreddat2$TotRain2[depreddat2$TotRain>0]<- 1 #Need to code it like this to let the model converge.
+
+
+
+
 
 
 

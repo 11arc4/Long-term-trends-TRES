@@ -14,20 +14,50 @@ dat <- read.csv("file:///C:/Users/11arc/Documents/Masters Thesis Project/Long te
 dat$TimePeriod<-factor(dat$TimePeriod, levels=c("Growing", "Declining", "PostDecline"))
 dat$TimePeriod<-factor(dat$TimePeriod, levels=c("PostDecline", "Declining", "Growing"))
 
+
+#Make a column for whether they were depredated or not (yes=1). This is the
+#opposite of fledge2, but is a better more intuitive way of plotting that I'm
+#sure.
+dat$Depredated <- NA
+dat$Depredated[Pred$Fledge2==0]<- 1
+dat$Depredated[Pred$Fledge2==1]<- 0
+
+
+#Are there any times where a nest looks like it fledged earlier than 16 days
+#old? Because those probably got predated and should be fixed.
+dat %>% filter(Fledge2==1 & (FledgeDate-HatchDate)<16 & FledgeDate>HatchDate)
+dat$Fledge2[]<- 0
+dat$Fledge[] <- 0 #I'm not sure how many would have fledged without checkin long term records. 
+dat$FailureCause[]<- "PREDATION"
+
+#Alternatively are there any nests that look like they were predated after say
+#18 days? Because those probably force fledged!
+
+dat %>% filter(Fledge2==0 & (FledgeDate-HatchDate)>16 & !is.na(FledgeDate) & !is.na(HatchDate) & FailureCause2=="PREDATION")
+dat$Fledge2[]<- 1
+dat$Fledge[] <- NA #I'm not sure how many would have fledged without checkin long term records. 
+dat$FailureCause[]<- NA
+
+
 #make a dataset containing only nests that weren't predated and nests that were
 #predated. Remove all other causes of death because they obscure whether the
 #nest would ultimately have been depredated
 Pred <- dat %>% filter(!is.na(Daysabove18) & (Fledge2==1 | (FailureCause2=="PREDATION" & Fledge2==0))) 
 #Want to use the same dataset here as later
 
-#Make a column for whether they were depredated or not (yes=1). This is the
-#opposite of fledge2, but is a better more intuitive way of plotting that I'm
-#sure.
-Pred$Depredated <- NA
-Pred$Depredated[Pred$Fledge2==0]<- 1
-Pred$Depredated[Pred$Fledge2==1]<- 0
 
-Pred$TimePeriod <- factor(Pred$TimePeriod)
+
+
+
+#Are there any times when the 
+dat %>% filter(Depredated!=)
+
+
+
+
+
+
+
 
 
 ggplot(Pred, aes(x=Year, y=Depredated))+
@@ -59,8 +89,7 @@ ggplot(PredationSummary, aes(x=Year, y=RatioPred))+
   
   
 
-
-########################################
+#######################################
 #Question: Are there more predated nests in years during the decline? 
 
 mod_pred1 <- glm(Depredated ~ TimePeriod*Year2, family=binomial(link="logit"), data=Pred)
@@ -112,10 +141,23 @@ ggsave(filename='~/Masters Thesis Project/Long term trends paper/Plots for paper
 #Predation rate was high and growing during the time period while the population
 #was crashing. I feel pretty good with this model. It seems to match the data pretty well. 
 
+#What age tends to get predated?
+Pred2<- Pred %>% filter(Depredated==1)
+
+
+Pred2$AgeatPred <- Pred2$FledgeDate-Pred2$HatchDate
+Pred2 %>% filter(AgeatPred<1 | AgeatPred>16)
+
+hist(Pred2$AgeatPred)
+summary(Pred2$AgeatPred)
+
 
 
 #Question 2: Is predation somehow related to weather? I'm not really expecting
 #it to be at the binary level, but perhaps.
+
+
+
 
 ggplot(Pred, aes(x=Daysabove18, y=Depredated))+
   geom_point()+
