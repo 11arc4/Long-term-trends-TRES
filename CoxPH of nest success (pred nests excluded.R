@@ -4,7 +4,7 @@
 library(survival)
 library(MuMIn)
 library(tidyverse)
-# # #Load in the nest level fledge data.
+# #Load in the nest level fledge data.
 # dat <- read.csv("file:///C:/Users/11arc/Documents/Masters Thesis Project/Long term trends paper/Data Files_long term trends/Binary Fledge Success wo experimental nests.csv", as.is=T, na.strings = "" ) %>% filter(Daysabove18 <10)
 # #
 # # #Let's remove nests without dated that we need, and the predated nests
@@ -81,8 +81,8 @@ library(tidyverse)
 # #other analyses and it's important to be consistant, even thoguh the results are
 # #no different either way
 # 
-# weather.pca <- prcomp(na.omit(weatherVar), 
-#                       center=T, 
+# weather.pca <- prcomp(na.omit(weatherVar),
+#                       center=T,
 #                       scale=T)
 # 
 # plot(weather.pca, type="lines")
@@ -105,7 +105,7 @@ library(tidyverse)
 # 
 # survdatNP2 <- survdatNP %>% filter(!is.na(TotRain) & !is.na(MeanTemp))
 # survdatNP2$TotRain2 <- 0
-# survdatNP2$TotRain2[survdatNP2$TotRain>0]<- 1 #Need to code it like this to let the model converge. 
+# survdatNP2$TotRain2[survdatNP2$TotRain>0]<- 1 #Need to code it like this to let the model converge.
 # 
 # 
 # write.csv(survdatNP, file= "file:///C:/Users/11arc/Documents/Masters Thesis Project/Long term trends paper/Data Files_long term trends/CoxPH survival datas NO PREDATION.csv", na="", row.names = F)
@@ -130,7 +130,7 @@ plot(resid(mod)~survdat2$TimePeriod)
 plot(predict(mod)~resid(mod))
 
 
-car::Anova(mod)
+anova(mod, type="Chisq")
 options(na.action="na.fail")
 dredge(mod)
 mam <- mod
@@ -181,10 +181,11 @@ plot(resid(mod_maxtemp)~survdat2$MaxTemp)
 plot(resid(mod_maxtemp)~survdat2$TimePeriod)
 plot(predict(mod_maxtemp)~resid(mod_maxtemp))
 
-car::Anova(mod_maxtemp)
+anova(mod_maxtemp)
 dredge(mod_maxtemp)
 mam_maxtemp <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2+ MaxTemp, data=survdat2)
-#higher max temp= less mortality risk
+#higher max temp= less mortality risk, Intermediates and endotherms are more affected by temperature though. 
+#THis agrees well with our binary results!
 
 ############Min temp?
 mod_mintemp <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2*TimePeriod*MinTemp, data=survdat2)
@@ -196,7 +197,7 @@ plot(resid(mod_mintemp)~survdat2$TimePeriod)
 plot(predict(mod_mintemp)~resid(mod_mintemp))
 #all good
 
-car::Anova(mod_mintemp)
+anova(mod_mintemp)
 dredge(mod_mintemp)
 mam_mintemp <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2* MinTemp, data=survdat2)
 #higher min temp= less mortality risk
@@ -210,7 +211,7 @@ plot(resid(mod_meantemp)~survdat2$MeanTemp)
 plot(resid(mod_meantemp)~survdat2$TimePeriod)
 plot(predict(mod_meantemp)~resid(mod_meantemp))
 
-car::Anova(mod_meantemp)
+anova(mod_meantemp)
 dredge(mod_meantemp)
 mam_meantemp <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2*MeanTemp, data=survdat2)
 #Higher mean temp = less mortality, especially for poikilotherms
@@ -239,9 +240,11 @@ plot(resid(mod_rain)~survdat2$TimePeriod)
 plot(predict(mod_rain)~resid(mod_rain))
 #I think this model fits better. 
 
-car::Anova(mod_rain)
+anova(mod_rain)
 dredge(mod_rain)
 mam_rain <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2+ Rain, data=survdat2)
+#More likely to fail if it rained the previous day
+
 
 ##############a combination via PCs? 
 mod_PC <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2*TimePeriod*PC1 + Age2*TimePeriod*PC2, data=survdat2)
@@ -254,17 +257,18 @@ plot(resid(mod_PC)~survdat2$TimePeriod)
 plot(predict(mod_PC)~resid(mod_PC))
 #looks like it fits
 
-car::Anova(mod_PC)
+anova(mod_PC)
 dredge(mod_PC)
 
-mam_PC <- coxph(Surv(time=Time1, time2=Time2, event=Status)~ Age2*PC1 + PC2, data=survdat2)
+mam_PC <- coxph(Surv(time=Time1, time2=Time2, event=Status)~ Age2+ PC1 + PC2, data=survdat2)
 
 
 #So which of our weather variables is the best predictor? 
 
 AICc(mam_maxtemp, mam_mintemp, mam_meantemp, mam_rain, mam_PC)
-#max_temp is definitely the best. 
-AICc(mam) #Oh wow. Max temperature is actually better than year and all that at predicting nest failure
+# Oh wow. Max temperature is actually better
+#than year and all that at predicting nest failure. This is fantastic and in
+#complete agreemment with the binary results.
 
 
 

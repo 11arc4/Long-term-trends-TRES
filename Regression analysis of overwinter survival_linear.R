@@ -6,6 +6,7 @@ library(MuMIn)
 #as data points in a regression analysis. Then we can follow a similar analysis
 #as the fledging analysis.
 
+
 Survival <- read.csv("file:///C:/Users/11arc/Documents/Masters Thesis Project/Long term trends paper/Data Files_long term trends/Yearly Survival Estimates.csv", na.strings="", as.is=T)
 
 
