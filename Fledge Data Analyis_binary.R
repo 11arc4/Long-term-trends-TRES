@@ -282,3 +282,12 @@ library(cowplot)
 
 plot_grid(PanelA, PanelB,ViewPortB, nrow=3, ncol=1, labels=c("a", "b", "c"), label_size = 20, label_fontfamily = "serif")
 ggsave(filename='~/Masters Thesis Project/Long term trends paper/Plots for paper/Fledging plot.jpeg', width=5, height=9, units="in", device="jpeg")
+
+
+
+
+
+
+
+
+

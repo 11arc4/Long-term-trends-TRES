@@ -19,24 +19,24 @@ dat$TimePeriod<-factor(dat$TimePeriod, levels=c("PostDecline", "Declining", "Gro
 #opposite of fledge2, but is a better more intuitive way of plotting that I'm
 #sure.
 dat$Depredated <- NA
-dat$Depredated[Pred$Fledge2==0]<- 1
-dat$Depredated[Pred$Fledge2==1]<- 0
+dat$Depredated[dat$Fledge2==0]<- 1
+dat$Depredated[dat$Fledge2==1]<- 0
 
 
-#Are there any times where a nest looks like it fledged earlier than 16 days
-#old? Because those probably got predated and should be fixed.
-dat %>% filter(Fledge2==1 & (FledgeDate-HatchDate)<16 & FledgeDate>HatchDate)
-dat$Fledge2[]<- 0
-dat$Fledge[] <- 0 #I'm not sure how many would have fledged without checkin long term records. 
-dat$FailureCause[]<- "PREDATION"
-
-#Alternatively are there any nests that look like they were predated after say
-#18 days? Because those probably force fledged!
-
-dat %>% filter(Fledge2==0 & (FledgeDate-HatchDate)>16 & !is.na(FledgeDate) & !is.na(HatchDate) & FailureCause2=="PREDATION")
-dat$Fledge2[]<- 1
-dat$Fledge[] <- NA #I'm not sure how many would have fledged without checkin long term records. 
-dat$FailureCause[]<- NA
+# #Are there any times where a nest looks like it fledged earlier than 16 days
+# #old? Because those probably got predated and should be fixed.
+# dat %>% filter(Fledge2==1 & (FledgeDate-HatchDate)<16 & FledgeDate>HatchDate)
+# dat$Fledge2[]<- 0
+# dat$Fledge[] <- 0 #I'm not sure how many would have fledged without checkin long term records. 
+# dat$FailureCause[]<- "PREDATION"
+# 
+# #Alternatively are there any nests that look like they were predated after say
+# #18 days? Because those probably force fledged!
+# 
+# dat %>% filter(Fledge2==0 & (FledgeDate-HatchDate)>16 & !is.na(FledgeDate) & !is.na(HatchDate) & FailureCause2=="PREDATION")
+# dat$Fledge2[]<- 1
+# dat$Fledge[] <- NA #I'm not sure how many would have fledged without checkin long term records. 
+# dat$FailureCause[]<- NA
 
 
 #make a dataset containing only nests that weren't predated and nests that were
@@ -49,23 +49,13 @@ Pred <- dat %>% filter(!is.na(Daysabove18) & (Fledge2==1 | (FailureCause2=="PRED
 
 
 
-#Are there any times when the 
-dat %>% filter(Depredated!=)
-
-
-
-
-
-
-
 
 
 ggplot(Pred, aes(x=Year, y=Depredated))+
   #geom_point()+
   geom_smooth()+
   geom_vline(xintercept = c(1991, 2014))+
-  stat_smooth(method="lm", formula=y~x, aes(group=TimePeriod))+
-  geom_point(data=PredationSummary, aes(x=Year, y=RatioPred))
+  stat_smooth(method="glm", formula=y~x, method.args=list(family=binomial(link="cauchit")), aes(group=TimePeriod))
 
 #This looks like there might actually be 3 change points, and 4 time periods for
 #predation risk rather than just 3 time periods. Lets double check with some raw
@@ -83,7 +73,7 @@ PredationSummary <- Pred %>% group_by(Year, TimePeriod)%>%
 ggplot(PredationSummary, aes(x=Year, y=RatioPred))+
          geom_point()+
          #geom_smooth(se=F)+
-  stat_smooth(method="lm", aes(group=TimePeriod), se=F)+
+  stat_smooth(method="glm", formula=y~x, method.args=list(family=binomial(link="cauchit")), aes(group=TimePeriod))+
   geom_vline(xintercept = c(1991, 2014))+
   ylim(0, 0.5)
   
@@ -142,15 +132,14 @@ ggsave(filename='~/Masters Thesis Project/Long term trends paper/Plots for paper
 #was crashing. I feel pretty good with this model. It seems to match the data pretty well. 
 
 #What age tends to get predated?
-Pred2<- Pred %>% filter(Depredated==1)
+Pred$AgeatFledgeFail <- Pred$FledgeDate-Pred$HatchDate
+Pred2<- Pred %>% filter(Depredated==1 & AgeatFledgeFail>0 )
 
 
-Pred2$AgeatPred <- Pred2$FledgeDate-Pred2$HatchDate
-Pred2 %>% filter(AgeatPred<1 | AgeatPred>16)
 
-hist(Pred2$AgeatPred)
-summary(Pred2$AgeatPred)
-
+hist(Pred2$AgeatFledgeFail)
+summary(Pred2$AgeatFledgeFail)
+#Most of the predation occurs between day 6 and day 13 (that's the 1st through 3rd quartile)
 
 
 #Question 2: Is predation somehow related to weather? I'm not really expecting
