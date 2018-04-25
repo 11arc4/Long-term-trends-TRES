@@ -178,15 +178,13 @@ Pred$PredDays15[which(Pred$PredDays15>16)] <- Pred$PredDays15[which(Pred$PredDay
 Pred$PredDays20[which(Pred$PredDays20>16)] <- Pred$PredDays20[which(Pred$PredDays20>16)]/2
 
 Pred2 <- Pred %>% filter(!is.na(PredDays15))
+Pred2$TimePeriod <- factor(Pred2$TimePeriod, levels=c("Growing", "Declining", "PostDecline"))
 
-
-ggplot(Pred, aes(x=PredDays15, y=Depredated))+
-  geom_point()+
+ggplot(Pred2, aes(x=PredDays15, y=Depredated))+
   geom_smooth(method="glm", method.args= list(family=binomial(link="cauchit")))+
   facet_grid(~TimePeriod)
 
-ggplot(Pred, aes(x=PredDays20, y=Depredated))+
-  geom_point()+
+ggplot(Pred2, aes(x=PredDays20, y=Depredated))+
   geom_smooth(method="glm", method.args= list(family=binomial(link="cauchit")))+
   facet_grid(~TimePeriod)
 
@@ -245,6 +243,7 @@ mod_pred20 <-glm(Depredated ~ PredDays20*TimePeriod, family=binomial(link="cauch
 plot(mod_pred20) #There are a couple of points with leverage
 plot(resid(mod_pred20)~Pred2$TimePeriod) #Not great but not really worse than before.  
 plot(resid(mod_pred20)~Pred2$PredDays20)  #Looks ok
+plot(resid(mod_pred20)~Pred2$Depredated)  #Looks ok
 
 
 options(na.action="na.fail")
@@ -272,5 +271,107 @@ AICc(mam_pred15, mam_pred20)
 #the population wasn't growing. #Cosewic designates gray ratsnakes as threatened
 #in april 1998-- which is right after we see the population start declining.
 
+newdata_20 <- data.frame(PredDays20=rep(seq(4, 16, 1),3),
+                           TimePeriod=c(rep("Growing", 13), rep("Declining", 13), rep("PostDecline", 13)),
+                           predicted_logit=NA,
+                           predicted=NA, 
+                           se_logit=NA,
+                           ucl=NA, 
+                           lcl=NA)
 
+
+std <- qnorm(0.95 / 2 + 0.5)
+newdata_20$predicted_logit <- predict(mam_pred20, newdata_20, type="link", se=T)$fit
+newdata_20$se_logit <- predict(mam_pred20, newdata_20, type="link", se=T)$se
+newdata_20$lcl <- mam_pred20$family$linkinv(newdata_20$predicted_logit - std * newdata_20$se_logit)
+newdata_20$ucl <- mam_pred20$family$linkinv(newdata_20$predicted_logit + std * newdata_20$se_logit)
+newdata_20$predicted <- mam_pred20$family$linkinv(newdata_20$predicted_logit)  # Rescale to 0-1
+#Just FYI this works properly and matches what you would get with ggplots stat_smooth if it was able to do that. 
+
+ggplot(newdata_20, aes(x=PredDays20, y=predicted))+
+  geom_line(size=1, aes(group=TimePeriod))+
+  #These ribbons are 95% CIs
+  geom_ribbon(aes(ymin=lcl, ymax=ucl, fill=TimePeriod), alpha=0.4)+
+labs(x="Days of suitable \nweather for snakes", y="Predation Rate", fill="Population \nStatus", color="Population \nStatus")+
+  ggthemes::theme_few(base_size = 20)+
+  theme(text = element_text(size=20), axis.title.y = element_text(angle=0, vjust=0.5))
+  scale_x_continuous(breaks=c(1, 3, 5, 7, 9))
+  #scale_fill_manual(values=c("forestgreen", "red2", "gold2"), labels=c("Growing", "Declining", "Post Decline"))
+
+
+
+
+newdata_15 <- data.frame(PredDays15=rep(seq(12, 16, 1),3),
+                         TimePeriod=c(rep("Growing", 5), rep("Declining", 5), rep("PostDecline", 5)),
+                         predicted_logit=NA,
+                         predicted=NA, 
+                         se_logit=NA,
+                         use=NA, 
+                         lse=NA)
+
+
+std <- qnorm(0.95 / 2 + 0.5)
+newdata_15$predicted_logit <- predict(mam_pred15, newdata_15, type="link", se=T)$fit
+newdata_15$se_logit <- predict(mam_pred15, newdata_15, type="link", se=T)$se
+newdata_15$lcl <- mam_pred20$family$linkinv(newdata_15$predicted_logit - std * newdata_15$se_logit)
+newdata_15$ucl <- mam_pred20$family$linkinv(newdata_15$predicted_logit + std * newdata_15$se_logit)
+newdata_15$predicted <- mam_pred20$family$linkinv(newdata_15$predicted_logit)  # Rescale to 0-1
+#Just FYI this works properly and matches what you would get with ggplots stat_smooth if it was able to do that. 
+
+ggplot(newdata_15, aes(x=PredDays15, y=predicted))+
+  geom_line(size=1, aes(group=TimePeriod))+
+  geom_ribbon(aes(ymin=lcl, ymax=ucl, fill=TimePeriod), alpha=0.4)+
+  labs(x="Days of suitable weather for snakes", y="Predation Rate", fill="Population \nStatus", color="Population \nStatus")+
+  ggthemes::theme_few(base_size = 20)+
+  theme(text = element_text(size=20), axis.title.y = element_text(angle=0, vjust=0.5))
+  scale_x_continuous(breaks=c(1, 3, 5, 7, 9))
+
+#Very very similar results both ways.
+
+
+
+#Has the number of predation days changed though time?
+
+ggplot(Pred2, aes(x=Year, y=PredDays20))+
+  geom_point()+
+  geom_smooth(method="loess")
+
+ggplot(Pred2, aes(x=Year, y=PredDays20))+
+  geom_jitter(alpha=0.2)+
+  geom_smooth(method="lm", formula=y~poly(x,2), aes(group=TimePeriod))+
+  geom_smooth(method="loess")
+
+
+PredDaysSummary <- Pred2 %>% group_by(Year, TimePeriod, Year2)%>% summarise(MPredDays20 = mean(PredDays20), 
+                                                                     MPredDays15 = mean(PredDays15))
+ggplot(PredDaysSummary, aes(x=Year, y=MPredDays20))+
+  geom_point()+
+  geom_smooth()
+
+
+ggplot(PredDaysSummary, aes(x=Year, y=MPredDays15))+
+  geom_point()+
+  geom_smooth(method="lm")
+
+
+
+
+
+mod <- lm(MPredDays20~ Year2*TimePeriod, data=PredDaysSummary )
+plot(mod)
+hist(resid(mod))#meh not perfect
+shapiro.test(resid(mod)) #we pass this test. 
+plot(resid(mod)~PredDaysSummary$Year)
+plot(resid(mod)~PredDaysSummary$TimePeriod)
+#This looks OK
+
+dredge(mod)
+anova(mod)
+mam <- lm(MPredDays20~ Year2, data=PredDaysSummary )
+summary(mam)
+
+#Weak trend across years. Nothing very strong
+ggplot(PredDaysSummary, aes(x=Year, y=MPredDays20))+
+  geom_point()+
+  geom_smooth(method="lm")
 
