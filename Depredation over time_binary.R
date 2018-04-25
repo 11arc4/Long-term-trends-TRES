@@ -131,35 +131,71 @@ ggsave(filename='~/Masters Thesis Project/Long term trends paper/Plots for paper
 #Predation rate was high and growing during the time period while the population
 #was crashing. I feel pretty good with this model. It seems to match the data pretty well. 
 
-#What age tends to get predated?
-Pred$AgeatFledgeFail <- Pred$FledgeDate-Pred$HatchDate
-Pred2<- Pred %>% filter(Depredated==1 & AgeatFledgeFail>0 )
-
-
-
-hist(Pred2$AgeatFledgeFail)
-summary(Pred2$AgeatFledgeFail)
-#Most of the predation occurs between day 6 and day 13 (that's the 1st through 3rd quartile)
 
 
 #Question 2: Is predation somehow related to weather? I'm not really expecting
 #it to be at the binary level, but perhaps.
 
+#We will look at weather conditions during the first 16 days of nestling
+#development, and look at 2 cutoffs (15 degrees and 20 degrees based on Pat
+#Weatherhead)
+
+weather_pre <- read.csv("file:///C:/Users/11arc/Documents/Masters Thesis Project/Environmental Datasets/Harington Weather Station Daily Data 1975 to  2017.csv", as.is=T)
+weather <- weather_pre[26:nrow(weather_pre), c(1,2,6,8,10,12,14,16,18)]
+rm(weather_pre)
+colnames(weather) <- c("Date", "Year",  
+                       "MaxTemp", "MinTemp", "MeanTemp", "HeatDegDays", "CoolDegDays", "TotRain", "TotPrecip") 
+
+weather$JDate <- lubridate::yday(as.Date(weather$Date, format="%Y-%m-%d"))
+weather$MeanTemp <- as.numeric(weather$MeanTemp)
+weather$MaxTemp <- as.numeric(weather$MaxTemp)
 
 
 
-ggplot(Pred, aes(x=Daysabove18, y=Depredated))+
+calculatePredDays <- function(HatchDate, Year){
+  if(is.na(HatchDate)){
+    return(NA)
+  }
+  weatherYoung <- weather[which(Year==weather$Year & weather$JDate>=HatchDate & weather$JDate<(HatchDate+16)),c(3, 8)]
+  if (anyNA(weatherYoung)){
+    #if we are missing data for any of the days, then we'll just return NA
+    return(NA)
+  } else {
+    #how many of those days were warm enough for insects, and not raining (more than 1mm)
+    return(list("PredDays15"=length(which(weatherYoung$MaxTemp>15)), "PredDays20"=length(which(weatherYoung$MaxTemp>20))))
+  }
+}
+
+
+for (i in 1:nrow(Pred)){
+  PredDays <- calculatePredDays(HatchDate = Pred$HatchDate[i], Year=Pred$Year[i])
+  Pred$PredDays15[i]<- PredDays[1][[1]]
+  Pred$PredDays20[i]<- PredDays[2][[1]]
+}
+
+#It's because this month was in the dataset twice. I will divide by 2
+Pred$PredDays15[which(Pred$PredDays15>16)] <- Pred$PredDays15[which(Pred$PredDays15>16)]/2
+Pred$PredDays20[which(Pred$PredDays20>16)] <- Pred$PredDays20[which(Pred$PredDays20>16)]/2
+
+Pred2 <- Pred %>% filter(!is.na(PredDays15))
+
+
+ggplot(Pred, aes(x=PredDays15, y=Depredated))+
   geom_point()+
   geom_smooth(method="glm", method.args= list(family=binomial(link="cauchit")))+
-  stat_smooth(method="loess")+
   facet_grid(~TimePeriod)
 
+ggplot(Pred, aes(x=PredDays20, y=Depredated))+
+  geom_point()+
+  geom_smooth(method="glm", method.args= list(family=binomial(link="cauchit")))+
+  facet_grid(~TimePeriod)
 
-mod_preddays1 <-glm(Depredated ~ Daysabove18*TimePeriod, family=binomial(link="log"), data=Pred)
-mod_preddays2 <-glm(Depredated ~ Daysabove18*TimePeriod, family=binomial(link="logit"), data=Pred)
-mod_preddays3 <-glm(Depredated ~ Daysabove18*TimePeriod, family=binomial(link="cauchit"), data=Pred)
-mod_preddays4 <-glm(Depredated ~ Daysabove18*TimePeriod, family=binomial(link="cloglog"), data=Pred)
-mod_preddays5 <-glm(Depredated ~ Daysabove18*TimePeriod, family=binomial(link="probit"), data=Pred)
+#####Does days above 15 degrees during the predation periods make nestlings at risk of predation?
+mod_preddays1 <-glm(Depredated ~ PredDays15*TimePeriod, family=binomial(link="log"), data=Pred2)
+mod_preddays2 <-glm(Depredated ~ PredDays15*TimePeriod, family=binomial(link="logit"), data=Pred2)
+mod_preddays3 <-glm(Depredated ~ PredDays15*TimePeriod, family=binomial(link="cauchit"), data=Pred2)
+mod_preddays4 <-glm(Depredated ~ PredDays15*TimePeriod, family=binomial(link="cloglog"), data=Pred2)
+mod_preddays5 <-glm(Depredated ~ PredDays15*TimePeriod, family=binomial(link="probit"), data=Pred2)
 AICc(mod_preddays1, mod_preddays2, mod_preddays3, mod_preddays4, mod_preddays5)
 #Cauchit is much better. 
 library(DescTools)
@@ -170,100 +206,71 @@ PseudoR2(mod_preddays4)
 PseudoR2(mod_preddays5) 
 #Wow these are all terrible r^2 but I guess it's what we go for. 
 
-mod_preddays <-glm(Depredated ~ Daysabove18*TimePeriod, family=binomial(link="cauchit"), data=Pred)
-plot(mod_preddays) #There are a couple of points with leverage
-plot(resid(mod_preddays)~Pred$TimePeriod) #Not great but not really worse than before.  
-plot(resid(mod_preddays)~Pred$Daysabove18)  #Looks ok
+mod_pred15 <-glm(Depredated ~ PredDays15*TimePeriod, family=binomial(link="cauchit"), data=Pred2)
+plot(mod_pred15) #There are a couple of points with leverage
+plot(resid(mod_pred15)~Pred2$TimePeriod) #Not great but not really worse than before.  
+plot(resid(mod_pred15)~Pred2$PredDays15)  #Looks ok
 
-#Pred2 <- Pred[-which(cooks.distance(mod_preddays)>0.02),]
-#mod_preddays2 <-glm(Depredated ~ Daysabove18*TimePeriod, family=binomial(link="cauchit"), data=Pred2)
-# #None of this is driven by influential points, much as I suspected. It is just a real effect. 
 
 options(na.action="na.fail")
-dredge(mod_preddays) #this one says that we cant rule out that there was no effecct of days, but the null model is slightly better
-#this says we shoudl only keep time period but it is reporting F stats and since
-#we have a binimial, we should report chi squared and deviance instead
-summary(aov(mod_preddays)) 
-#either of these report the chi squared/ deviance and are equivalent. THis is
-#what we should report
-car::Anova(mod_preddays)
-anova(mod_preddays, type="Chisq")
+dredge(mod_pred15) 
+car::Anova(mod_pred15)
+
+#Looks like Days above 15 degrees is a significant predictor but doesn't explain everything for time periods. 
+#More days with warm temperatures=more predation. 
+mam_pred15 <- glm(Depredated ~ PredDays15+TimePeriod, family=binomial(link="cauchit"), data=Pred2)
 
 #Here are our beta values and OR
-summary(mod_preddays)
-oddsRat_days <- exp(coef(mod_preddays))
-oddsRatSE_days <- get.or.se(mod_preddays)
+summary(mam_pred15)
+oddsRat_days <- exp(coef(mam_pred15))
+oddsRatSE_days <- get.or.se(mam_pred15)
 
-ggplot(Pred, aes(x=Daysabove18, y=Depredated))+
-  #geom_point()+
-  geom_smooth(method="glm", method.args= list(family=binomial(link="cauchit")))+
-  facet_grid(~TimePeriod)+
-  labs(x="Days of good weather during \nearly nestling development", y="Probability of depredation")+
-  ggthemes::theme_few(base_size = 16, base_family = "serif")
-#Weak trend toward less predation when there are more days with good warm
-#weather when the population was growing, but that trend goes away and there is
-#constant predation risk when the population was declining and post decline,
-#regardless of weather. I suspect this isn't really real, but if it was real,
-#perhaps it is because there are more other types of prey active when it's warm
-#but only nestlings available when it's cold.
+######Does days above 20 degrees during the predation periods make nestlings at risk of predation?
+mod_preddays1 <-glm(Depredated ~ PredDays20*TimePeriod, family=binomial(link="log"), data=Pred2)
+mod_preddays2 <-glm(Depredated ~ PredDays20*TimePeriod, family=binomial(link="logit"), data=Pred2)
+mod_preddays3 <-glm(Depredated ~ PredDays20*TimePeriod, family=binomial(link="cauchit"), data=Pred2)
+mod_preddays4 <-glm(Depredated ~ PredDays20*TimePeriod, family=binomial(link="cloglog"), data=Pred2)
+mod_preddays5 <-glm(Depredated ~ PredDays20*TimePeriod, family=binomial(link="probit"), data=Pred2)
+AICc(mod_preddays1, mod_preddays2, mod_preddays3, mod_preddays4, mod_preddays5)
+#Cauchit is  better. 
+library(DescTools)
+PseudoR2(mod_preddays1) 
+PseudoR2(mod_preddays2) 
+PseudoR2(mod_preddays3) 
+PseudoR2(mod_preddays4) 
+PseudoR2(mod_preddays5) 
+#Wow these are all terrible r^2 but I guess it's what we go for. They're even lower than days above 15
+
+mod_pred20 <-glm(Depredated ~ PredDays20*TimePeriod, family=binomial(link="cauchit"), data=Pred2)
+plot(mod_pred20) #There are a couple of points with leverage
+plot(resid(mod_pred20)~Pred2$TimePeriod) #Not great but not really worse than before.  
+plot(resid(mod_pred20)~Pred2$PredDays20)  #Looks ok
+
+
+options(na.action="na.fail")
+dredge(mod_pred20) #Can't really tell if we need the interaction or not
+car::Anova(mod_pred20)
+
+#Looks like Days above 15 degrees is a significant predictor but doesn't explain everything for time periods. 
+#More days with warm temperatures=more predation. 
+mam_pred20 <- glm(Depredated ~ PredDays20+TimePeriod, family=binomial(link="cauchit"), data=Pred2)
+
+#Here are our beta values and OR
+summary(mam_pred20)
+oddsRat_days <- exp(coef(mam_pred20))
+oddsRatSE_days <- get.or.se(mam_pred20)
+
+
+#How does our best model for 20 vs 15 degrees compare?
+
+AICc(mam_pred15, mam_pred20)
+#They are almost exactly the same. I will go with 15 degrees since I have a
+#citation that I can use to justify that cutoff.
 
 
 #Predation rates were much higher when the population was declining than when
-#the population wasn't growing. Weather conditions don't really play any part. 
-
-#Cosewic designates gray ratsnakes as threatened in april 1998-- which is right after we see the population start declining. 
-
+#the population wasn't growing. #Cosewic designates gray ratsnakes as threatened
+#in april 1998-- which is right after we see the population start declining.
 
 
 
-YearSummary <- Pred %>% 
-  group_by(Year2, TimePeriod) %>% 
-  summarise(MeanHatchDate=mean(HatchDate), 
-            MeanDaysabove18= mean(Daysabove18, na.rm=T), 
-            Daysabove18_2 = NA,
-            RatioFledgePred= sum(Depredated>0)/length(Depredated),
-            Year=NA, 
-            Nests=length(Depredated)) 
-
-YearSummary$Year <- YearSummary$Year2*10+1975
-
-
-
-weather_pre <- read.csv("file:///C:/Users/11arc/Documents/Masters Thesis Project/Environmental Datasets/Hartington IHD Weather Station Daily Data 1975 to  2017.csv", as.is=T)
-weather <- weather_pre[26:nrow(weather_pre), c(1,2,6,8,10,12,14,16,18)]
-rm(weather_pre)
-colnames(weather) <- c("Date", "Year",  
-                       "MaxTemp", "MinTemp", "MeanTemp", "HeatDegDays", "CoolDegDays", "TotRain", "TotPrecip") 
-
-weather$JDate <- lubridate::yday(as.Date(weather$Date, format="%m/%d/%Y"))
-weather$MeanTemp <- as.numeric(weather$MeanTemp)
-weather$MaxTemp <- as.numeric(weather$MaxTemp)
-
-
-for (i in 1:nrow(YearSummary)){
-  YearSummary$Daysabove18_2[i]<- calculateDaysabove18(HatchDate = YearSummary$MeanHatchDate[i], Year=YearSummary$Year[i])
-}
-
-
-
-
-calculateDaysabove18 <- function(HatchDate, Year){
-  if(is.na(HatchDate)){
-    return(NA)
-  }
-  weatherPoik <- weather[which(Year==weather$Year & weather$JDate>=HatchDate & weather$JDate<(HatchDate+9)),c(3, 8)]
-  if (anyNA(weatherPoik)){
-    #if we are missing data for any of the days, then we'll just return NA
-    return(NA)
-  } else {
-    #how many of those days were warm enough for insects, and not raining (more than 1mm)
-    return(length(which(weatherPoik$MaxTemp>18.5 & weatherPoik$TotRain==0)))
-  }
-}
-
-
-
-ggplot(YearSummary %>% filter(Nests>10), aes(x=MeanDaysabove18, y=RatioFledgePred))+
-  geom_point()+
-  facet_grid(~TimePeriod)+
-  geom_smooth(method="lm")
