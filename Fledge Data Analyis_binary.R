@@ -54,32 +54,6 @@ summary(mod)
 
 #Yes! This is fantastic. It finally looks like our data is 
 
-newdata <- data.frame(Year2=rep(seq(0, 4.2, 0.1)),
-                      TimePeriod=c(rep("Growing", 17), rep("Declining", 23), rep("PostDecline", 3)),
-                      predicted_logit=NA,
-                      predicted=NA, 
-                      se_logit=NA,
-                      use=NA, 
-                      lse=NA)
-
-
-newdata$predicted_logit <- predict(mod, newdata, se.fit = T)$fit
-newdata$se_logit <- predict(mod, newdata, se.fit = T)$se.fit
-
-newdata$predicted <- arm::invlogit(newdata$predicted_logit)
-newdata$use <- arm::invlogit(newdata$predicted_logit+ (newdata$se_logit))
-newdata$lse <- arm::invlogit(newdata$predicted_logit- (newdata$se_logit))
-
-ggplot(newdata, aes(y=predicted, x=Year2*10+1975, group=TimePeriod))+
-  geom_line()+
-  geom_ribbon(aes(ymin=lse, ymax=use),alpha=0.2)+
-  ylim(0, 1)+
-  labs(y="Probability of \nFledging Success", x="Year")+
-  geom_vline(xintercept = c(1991, 2013 ))+
-  ggthemes::theme_few(base_size = 16)+
-  theme(text = element_text(size=20), axis.title.y = element_text(angle=0, vjust=0.5))
-  
-
 
 #################################################################
 #Question: Is nest failure (excluding death due to predation) more common in
@@ -196,18 +170,19 @@ newdata_days <- data.frame(Daysabove18=rep(seq(0, 9, 1),3),
                        lse=NA)
 
 
-newdata_days$predicted_logit <- predict(mamdaysMod_nopred, newdata_days, se.fit = T)$fit
-newdata_days$se_logit <- predict(mamdaysMod_nopred, newdata_days, se.fit = T)$se.fit
+std <- qnorm(0.95 / 2 + 0.5)
+newdata_days$predicted_logit <- predict(mamdaysMod_nopred, newdata_days, type="link", se=T)$fit
+newdata_days$se_logit <- predict(mamdaysMod_nopred, newdata_days, type="link", se=T)$se
+newdata_days$lcl <- mamdaysMod_nopred$family$linkinv(newdata_days$predicted_logit - std * newdata_days$se_logit)
+newdata_days$ucl <- mamdaysMod_nopred$family$linkinv(newdata_days$predicted_logit + std * newdata_days$se_logit)
+newdata_days$predicted <- mamdaysMod_nopred$family$linkinv(newdata_days$predicted_logit)  # Rescale to 0-1
 
-newdata_days$predicted <- arm::invlogit(newdata_days$predicted_logit)
-newdata_days$use <- arm::invlogit(newdata_days$predicted_logit+ (newdata_days$se_logit))
-newdata_days$lse <- arm::invlogit(newdata_days$predicted_logit- (newdata_days$se_logit))
 
 newdata_days$TimePeriod <- factor(newdata_days$TimePeriod, levels=c("Growing", "Declining", "PostDecline"))
 
 ggplot(newdata_days, aes(x=Daysabove18, y=predicted))+
   geom_line(size=1, aes(group=TimePeriod))+
-  geom_ribbon(aes(ymin=use, ymax=lse, fill=TimePeriod), alpha=0.4)+
+  geom_ribbon(aes(ymin=lcl, ymax=ucl, fill=TimePeriod), alpha=0.2)+
   labs(x="Days of good weather \nduring early development", y="Fledging\nSuccess", fill="Population \nStatus", color="Population \nStatus")+
   ggthemes::theme_few(base_size = 20)+
   theme(text = element_text(size=20), axis.title.y = element_text(angle=0, vjust=0.5))+
@@ -218,12 +193,12 @@ ggsave(filename='~/Masters Thesis Project/BGRS symposium presentation/Fledging S
 
 PanelB <- ggplot(newdata_days, aes(x=Daysabove18, y=predicted))+
   geom_line(size=1, aes(group=TimePeriod))+
-  geom_ribbon(aes(ymin=use, ymax=lse, fill=TimePeriod), alpha=0.4)+
+  geom_ribbon(aes(ymin=ucl, ymax=lcl, fill=TimePeriod), alpha=0.2)+
   labs(x="Days of good weather", y="Probability of \nFledging Success", fill="", color="Population \nStatus")+
   ggthemes::theme_few(base_size = 16, base_family = "serif")+
   theme(legend.position = c(0.85, 0.3), legend.background = element_rect(fill=alpha('white', 0)))+
   scale_x_continuous(breaks=c(1, 3, 5, 7, 9))+
-  scale_fill_grey(labels=c("Growing", "Declining", "Post-decline"))
+  scale_fill_grey(labels=c("Growing", "Declining", "Post-decline"), start=0.6, end=0.2)
 PanelB
 
 #################################################################

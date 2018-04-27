@@ -254,6 +254,8 @@ car::Anova(mod_pred20)
 #More days with warm temperatures=more predation. 
 mam_pred20 <- glm(Depredated ~ PredDays20+TimePeriod, family=binomial(link="cauchit"), data=Pred2)
 
+
+
 #Here are our beta values and OR
 summary(mam_pred20)
 oddsRat_days <- exp(coef(mam_pred20))
@@ -263,8 +265,14 @@ oddsRatSE_days <- get.or.se(mam_pred20)
 #How does our best model for 20 vs 15 degrees compare?
 
 AICc(mam_pred15, mam_pred20)
-#They are almost exactly the same. I will go with 15 degrees since I have a
-#citation that I can use to justify that cutoff.
+#They are almost exactly the same. 15 degrees is almost 20 times better so well go with that!!
+
+
+ggplot(Pred2, aes(x=PredDays20, y=PredDays15))+
+  geom_point()+
+  geom_smooth()
+
+cor(Pred2$PredDays15, Pred2$PredDays20)
 
 
 #Predation rates were much higher when the population was declining than when
@@ -332,46 +340,28 @@ ggplot(newdata_15, aes(x=PredDays15, y=predicted))+
 
 #Has the number of predation days changed though time?
 
-ggplot(Pred2, aes(x=Year, y=PredDays20))+
+ggplot(Pred2, aes(x=Year, y=PredDays15))+
   geom_point()+
   geom_smooth(method="loess")
 
-ggplot(Pred2, aes(x=Year, y=PredDays20))+
-  geom_jitter(alpha=0.2)+
-  geom_smooth(method="lm", formula=y~poly(x,2), aes(group=TimePeriod))+
+ggplot(Pred2, aes(x=Year, y=PredDays15))+
+  geom_jitter(alpha=0.2, width=0, height=0.3 )+
+  geom_smooth(method="lm", formula=y~x, aes(group=TimePeriod))+
   geom_smooth(method="loess")
 
+length(which(Pred2$PredDays15>=15))/nrow(Pred2)
 
 PredDaysSummary <- Pred2 %>% group_by(Year, TimePeriod, Year2)%>% summarise(MPredDays20 = mean(PredDays20), 
-                                                                     MPredDays15 = mean(PredDays15))
-ggplot(PredDaysSummary, aes(x=Year, y=MPredDays20))+
-  geom_point()+
-  geom_smooth()
+                                                                     MPredDays15 = mean(PredDays15), 
+                                                                     MBadDays15 = mean(BadDays15)
+                                                                    )
+hist(PredDaysSummary$MBadDays15, breaks=10)
+
+Pred2$BadDays15 <- abs(Pred2$PredDays15-16)
+
+hist(Pred2$BadDays15) #This could be a zero inflated poisson now!
 
 
-ggplot(PredDaysSummary, aes(x=Year, y=MPredDays15))+
-  geom_point()+
-  geom_smooth(method="lm")
-
-
-
-
-
-mod <- lm(MPredDays20~ Year2*TimePeriod, data=PredDaysSummary )
-plot(mod)
-hist(resid(mod))#meh not perfect
-shapiro.test(resid(mod)) #we pass this test. 
-plot(resid(mod)~PredDaysSummary$Year)
-plot(resid(mod)~PredDaysSummary$TimePeriod)
-#This looks OK
-
-dredge(mod)
-anova(mod)
-mam <- lm(MPredDays20~ Year2, data=PredDaysSummary )
-summary(mam)
-
-#Weak trend across years. Nothing very strong
-ggplot(PredDaysSummary, aes(x=Year, y=MPredDays20))+
-  geom_point()+
-  geom_smooth(method="lm")
-
+#I have no good way to model this. The whole thing is a mess. Instead I've just
+#said how much of the nests are experineceing 15+ days of nest predation---
+#predation not limited by weather.
