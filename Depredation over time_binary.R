@@ -308,7 +308,6 @@ labs(x="Days of suitable \nweather for snakes", y="Predation Rate", fill="Popula
 
 
 
-
 newdata_15 <- data.frame(PredDays15=rep(seq(12, 16, 1),3),
                          TimePeriod=c(rep("Growing", 5), rep("Declining", 5), rep("PostDecline", 5)),
                          predicted_logit=NA,

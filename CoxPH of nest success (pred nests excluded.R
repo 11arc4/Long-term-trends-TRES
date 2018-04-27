@@ -133,9 +133,16 @@ plot(predict(mod)~resid(mod))
 anova(mod, type="Chisq")
 options(na.action="na.fail")
 dredge(mod)
-mam <- mod
 
+survdat2$Age2 <- factor(survdat2$Age2, levels=c( "Endotherm", "Intermediate","Poikilotherm" ))
+survdat2$TimePeriod <- factor(survdat2$TimePeriod, levels=c( "Declining","Growing", "PostDecline"))
+mam <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2*Year2*TimePeriod, data=survdat2)
+summary(mam)
 
+4.070e+00*2.646e-01
+2.588e+00*2.816e-01
+2.816e+00*1.828e-01
+7.599e+00*4.337e-01
 newdata <- data.frame(Year2=rep(seq(0, 4.2, 0.1), 3),
                       TimePeriod=rep(c(rep("Growing", 22), rep("Declining", 17), rep("PostDecline", 4)),3),
                       Age2 = c(rep("Poikilotherm", 43), rep("Intermediate", 43), rep("Endotherm", 43)), 
@@ -144,21 +151,25 @@ newdata <- data.frame(Year2=rep(seq(0, 4.2, 0.1), 3),
                       ucl=NA, 
                       lcl=NA)
 
+
 newdata$predicted<- predict(mam, newdata=newdata, se.fit = T,  type="risk")[[1]]
 newdata$se<- predict(mam, newdata=newdata, se.fit = T,  type="risk")[[2]]
 
-ggplot(newdata, aes(x=Year2*10+1975, y=predicted))+
-  geom_line(aes(color=Age2), data=newdata %>% filter(TimePeriod=="Declining"))+
-  geom_ribbon(aes(ymin=predicted-se, ymax=predicted+se, fill=Age2), alpha=0.2, data=newdata %>% filter(TimePeriod=="Declining") )+
-  geom_line(aes(color=Age2), data=newdata %>% filter(TimePeriod=="Growing"))+
-  geom_ribbon(aes(ymin=predicted-se, ymax=predicted+se, fill=Age2), alpha=0.2, data=newdata %>% filter(TimePeriod=="Growing") )+
-  geom_line(aes(color=Age2), data=newdata %>% filter(TimePeriod=="PostDecline"))+
-  geom_ribbon(aes(ymin=predicted-se, ymax=predicted+se, fill=Age2), alpha=0.2, data=newdata %>% filter(TimePeriod=="PostDecline") )+
+PanelA <- ggplot(newdata, aes(x=Year2*10+1975, y=predicted, group=Age2))+
+  geom_line( data=newdata %>% filter(TimePeriod=="Declining"))+
+  geom_ribbon(aes(ymin=predicted-se, ymax=predicted+se, fill=Age2), alpha=0.6, data=newdata %>% filter(TimePeriod=="Declining") )+
+  geom_line( data=newdata %>% filter(TimePeriod=="Growing"))+
+  geom_ribbon(aes(ymin=predicted-se, ymax=predicted+se, fill=Age2), alpha=0.6, data=newdata %>% filter(TimePeriod=="Growing") )+
+  geom_line( data=newdata %>% filter(TimePeriod=="PostDecline"))+
+  geom_ribbon(aes(ymin=predicted-se, ymax=predicted+se, fill=Age2), alpha=0.6, data=newdata %>% filter(TimePeriod=="PostDecline") )+
   geom_vline(xintercept = c(1996.5, 2013.5 ))+
-  labs(x="Year", y="Nest Failure Risk", color="Nestling Age", fill="Nestling Age" )+ 
-  ggthemes::theme_few(base_size = 16)
+  labs(x="Year", y="Nest Failure Risk", fill="" )+ 
+  ggthemes::theme_few(base_size = 16, base_family = "serif")+
+  theme(legend.position = c(0.25, 0.85), legend.background = element_rect(fill=alpha('white', 0)), legend.text = element_text(size=10))+
+  scale_fill_grey(labels=c("Poikilothermic (0-6 days)", "Intermediate (7-8 days)", "Homeothermic (9+ days)"), start=0.2, end=0.8)
+  
 
-summary(mam)
+
 
 #Based on our graph and the t values of the summary of mam
 # Mortality differences between endotherms across time aren’t statistically
@@ -173,6 +184,9 @@ summary(mam)
 #Question 2: Do any weather variables predict mortality risk? What are the best weather variables for predicting mortality risk?
 
 #############Max temp? 
+survdat2$Age2 <- factor(survdat2$Age2, levels=c("Endotherm", "Intermediate", "Poikilotherm"))
+
+
 mod_maxtemp <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2*TimePeriod*MaxTemp, data=survdat2)
 test.ph <- cox.zph(mod_maxtemp) #all looks good
 plot(test.ph) #This looks good overall
@@ -186,7 +200,11 @@ dredge(mod_maxtemp)
 mam_maxtemp <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2+ MaxTemp, data=survdat2)
 #higher max temp= less mortality risk, Intermediates and endotherms are more affected by temperature though. 
 #THis agrees well with our binary results!
+summary(mam_maxtemp)
 
+0.81129*0.14150
+0.51179*0.12849
+0.86820*0.01041
 ############Min temp?
 mod_mintemp <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2*TimePeriod*MinTemp, data=survdat2)
 test.ph <- cox.zph(mod_mintemp) #all looks good
@@ -282,11 +300,17 @@ newdata2 <- data.frame(MaxTemp=rep(seq(10.5, 35, length=40), 3),
 newdata2$predicted<- predict(mam_maxtemp, newdata=newdata2, se.fit = T,  type="risk")[[1]]
 newdata2$se<- predict(mam_maxtemp, newdata=newdata2, se.fit = T,  type="risk")[[2]]
 
-ggplot(newdata2, aes(x=MaxTemp, y=predicted))+
-  geom_line(aes(color=Age2))+
-  geom_ribbon(aes(ymin=predicted-se, ymax=predicted+se, fill=Age2), alpha=0.4)+
-  labs(y="Nest Failure Risk", x="Max Temperature", fill="Nestling Age", color="Nestling Age")+
-  ggthemes::theme_few(base_size=16)
+PanelB <- ggplot(newdata2, aes(x=MaxTemp, y=predicted, group=Age2))+
+  geom_line()+
+  geom_ribbon(aes(ymin=predicted-se, ymax=predicted+se, fill=Age2), alpha=0.6)+
+  labs(y="Nest Failure Risk", x=expression('Max Temperature ('*degree*C*')'), fill="", color="")+
+  ggthemes::theme_few(base_size = 16, base_family = "serif")+
+  theme(legend.position = c(0.75, 0.85), legend.background = element_rect(fill=alpha('white', 0)), legend.text = element_text(size=10))+
+  scale_fill_grey(labels=c("Poikilothermic (0-6 days)", "Intermediate (7-8 days)", "Homeothermic (9+ days)"), start=0.2, end=0.8)
+
+library(cowplot)
+plot_grid(PanelA, PanelB,nrow=2, ncol=1, labels=c("a", "b"), label_size = 20, label_fontfamily = "serif")
+ggsave(filename='~/Masters Thesis Project/Long term trends paper/Plots for paper/Supplemental Fledging plot.jpeg', width=5, height=6, units="in", device="jpeg")
 
 
 ############################
@@ -315,7 +339,7 @@ plot(resid(mod_weather)~YearSummary$TimePeriod)
 plot(resid(mod_weather)~YearSummary$Age2)
 #looks OK
 
-car::Anova(mod_weather)
+anova(mod_weather, test="F")
 dredge(mod_weather)
 YearSummary$Year <- YearSummary$Year2*10+1975
 
