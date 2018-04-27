@@ -133,7 +133,7 @@ depreddat2$TotRain2[depreddat2$TotRain>0]<- 1 #Need to code it like this to let 
 #I dropped the 3 way interaction
 #SE is WILD. I think this analysis really isn't going to work. We have too many groups, and too few depredations. 
 #We think that risk of depredation is higher for intermediates with time but it's a bit unclear still. I will 
-mod <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2*TimePeriod + Year2*TimePeriod, data=depreddat2)
+mod <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2*TimePeriod + Age2* Year2 + Year2*TimePeriod, data=depreddat2)
 test.ph <- cox.zph(mod) #not perfect
 plot(test.ph) #I think this is workable
 plot(resid(mod)~depreddat2$Age2)
@@ -144,12 +144,17 @@ plot(predict(mod)~resid(mod))
 
 
 dredge(mod)
+anova(mod)
 #Best mod is the full mod
 
-mam <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2 + Year2*TimePeriod, data=depreddat2)
+depreddat2$TimePeriod <- factor(depreddat2$TimePeriod, levels=c("Declining", "Growing", "PostDecline"))
+depreddat2$TimePeriod <- factor(depreddat2$TimePeriod, levels=c("PostDecline", "Declining", "Growing" ))
+
+mam <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Year2*TimePeriod, data=depreddat2)
 summary(mam)
-
-
+6.833e-01 *3.056e-01
+1.989e+00 * 1.740e-01
+1.704e+03*  2.513e+00
 newdata <- data.frame(Year2=rep(seq(0, 4.2, 0.1), 3),
                       TimePeriod=rep(c(rep("Growing", 22), rep("Declining", 17), rep("PostDecline", 4)),3),
                       Age2 = c(rep("Poikilotherm", 43), rep("Intermediate", 43), rep("Endotherm", 43)), 
@@ -161,17 +166,17 @@ newdata <- data.frame(Year2=rep(seq(0, 4.2, 0.1), 3),
 newdata$predicted<- predict(mam, newdata=newdata, se.fit = T,  type="risk")[[1]]
 newdata$se<- predict(mam, newdata=newdata, se.fit = T,  type="risk")[[2]]
 
-ggplot(newdata, aes(x=Year2*10+1975, y=predicted))+
-  geom_line(aes(color=Age2), data=newdata %>% filter(TimePeriod=="Declining"))+
-  geom_ribbon(aes(ymin=predicted-se, ymax=predicted+se, fill=Age2), alpha=0.2, data=newdata %>% filter(TimePeriod=="Declining") )+
-  geom_line(aes(color=Age2), data=newdata %>% filter(TimePeriod=="Growing"))+
-  geom_ribbon(aes(ymin=predicted-se, ymax=predicted+se, fill=Age2), alpha=0.2, data=newdata %>% filter(TimePeriod=="Growing") )+
-  geom_line(aes(color=Age2), data=newdata %>% filter(TimePeriod=="PostDecline"))+
-  geom_ribbon(aes(ymin=predicted-se, ymax=predicted+se, fill=Age2), alpha=0.2, data=newdata %>% filter(TimePeriod=="PostDecline") )+
+PanelA <- ggplot(newdata, aes(x=Year2*10+1975, y=predicted))+
+  geom_line(data=newdata %>% filter(TimePeriod=="Declining"))+
+  geom_ribbon(aes(ymin=predicted-se, ymax=predicted+se), alpha=0.3, data=newdata %>% filter(TimePeriod=="Declining") )+
+  geom_line(data=newdata %>% filter(TimePeriod=="Growing"))+
+  geom_ribbon(aes(ymin=predicted-se, ymax=predicted+se), alpha=0.3, data=newdata %>% filter(TimePeriod=="Growing") )+
+  geom_line( data=newdata %>% filter(TimePeriod=="PostDecline"))+
+  geom_ribbon(aes(ymin=predicted-se, ymax=predicted+se), alpha=0.3, data=newdata %>% filter(TimePeriod=="PostDecline") )+
   geom_vline(xintercept = c(1996.5, 2013.5 ))+
-  labs(x="Year", y="Nest Predation Risk", color="Nestling Age", fill="Nestling Age" )+
-  ggthemes::theme_few(base_size = 16)
-
+  labs(x="Year", y="Nest Predation Risk" )+
+  ggthemes::theme_few(base_size = 16, base_family = "serif")
+  
 
 
 ###########################Question 2: Does nest predation risk differ across environmental conditions?
@@ -184,11 +189,14 @@ plot(resid(mod_max) ~ depreddat2$Age2)
 plot(resid(mod_max) ~ depreddat2$TimePeriod)
 plot(resid(mod_max) ~ depreddat2$MaxTemp)
 
-car::Anova(mod_max)
+anova(mod_max)
 dredge(mod_max)
-mam_max <-coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2 +TimePeriod*MaxTemp, data=depreddat2)
+mam_max <-coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2*MaxTemp +TimePeriod, data=depreddat2)
+depreddat2$Age2 <- factor(depreddat2$Age2, levels=c("Intermediate", "Endotherm", "Poikilotherm"))
+depreddat2$Age2 <- factor(depreddat2$Age2, levels=c("Endotherm","Intermediate",  "Poikilotherm"))
 
-
+summary(mam_max)
+1.081031 * 0.049826
 
 #Mean Temp
 mod_mean <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2*TimePeriod*MeanTemp, data=depreddat2)
@@ -200,8 +208,9 @@ plot(resid(mod_mean) ~ depreddat2$TimePeriod)
 plot(resid(mod_mean) ~ depreddat2$MeanTemp)
 
 dredge(mod_mean)
+anova(mod_mean)
 
-mam_mean <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2+TimePeriod+MeanTemp, data=depreddat2)
+mam_mean <- coxph(Surv(time=Time1, time2=Time2, event=Status)~TimePeriod+MeanTemp, data=depreddat2)
 summary(mam_mean)
 #Higher risk of predation in warmer mean temps, higher risk during decline
 
@@ -215,9 +224,9 @@ plot(resid(mod_min) ~ depreddat2$TimePeriod)
 plot(resid(mod_min) ~ depreddat2$MeanTemp)
 
 dredge(mod_min)
+anova(mod_min)
 
-
-mam_min <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2+TimePeriod+MinTemp, data=depreddat2)
+mam_min <- coxph(Surv(time=Time1, time2=Time2, event=Status)~TimePeriod, data=depreddat2)
 summary(mam_min)
 #decline has higher risk, but weather is a lousy predictor
 
@@ -235,15 +244,17 @@ plot(resid(mod_rain) ~ depreddat2$Age2)
 plot(resid(mod_rain) ~ depreddat2$TimePeriod)
 plot(resid(mod_rain) ~ depreddat2$Rain)
 #Looks good. 
-Anova(mod_rain)
+anova(mod_rain)
 dredge(mod_rain)
 
-mam_rain <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2+TimePeriod*Rain, data=depreddat2)
+mam_rain <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2*TimePeriod*Rain, data=depreddat2)
+
+
 
 
 #PCs?
 mod_PC <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2*PC1*TimePeriod + Age2*PC2*TimePeriod, data=depreddat2)
-test.ph <- cox.zph(mod6) #mostly OK
+test.ph <- cox.zph(mod_PC) #mostly OK
 plot(test.ph) #overall looks ok
 plot(resid(mod_PC) ~ depreddat2$Age2)
 plot(resid(mod_PC) ~ depreddat2$TimePeriod)
@@ -252,12 +263,16 @@ plot(resid(mod_PC) ~ depreddat2$PC2)
 
 
 dredge(mod_PC)
-mam_PC <- coxph(Surv(time=Time1, time2=Time2, event=Status)~Age2+ PC1*TimePeriod + PC2*TimePeriod, data=depreddat2)
+anova(mod_PC)
+
+mam_PC <- coxph(Surv(time=Time1, time2=Time2, event=Status)~ PC1+TimePeriod + PC2, data=depreddat2)
 
 AICTable <- AICc(mam_max, mam_mean, mam_min, mam_rain, mam_PC)
 AICTable$Delta <- AICTable$AICc - min(AICTable$AICc)
 mam_max
 
+summary(mam_max)
+anova(mod_max)
 
 
 
@@ -273,10 +288,16 @@ newdata2$predicted<- predict(mam_max, newdata=newdata2, se.fit = T,  type="risk"
 newdata2$se<- predict(mam_max, newdata=newdata2, se.fit = T,  type="risk")[[2]]
 newdata2$TimePeriod <- factor(newdata2$TimePeriod, levels=c("Growing", "Declining", "PostDecline"))
 
-ggplot(newdata2, aes(x=MaxTemp, y=predicted))+
-  geom_line(aes(color=Age2))+
-  geom_ribbon(aes(ymin=predicted-se, ymax=predicted+se, fill=Age2), alpha=0.4)+
-  labs(y="Nest Predation Risk", x="Max Temperature", fill="Nestling Age", color="Nestling Age")+
-  ggthemes::theme_few(base_size=16)+
-  facet_grid(~TimePeriod)
+PanelB <- ggplot(newdata2, aes(x=MaxTemp, y=predicted, group=Age2))+
+  geom_line()+
+  geom_ribbon(aes(ymin=predicted-se, ymax=predicted+se, fill=Age2), alpha=0.6)+
+  labs(y="Nest Predation Risk", x=expression('Max Temperature ('*degree*C*')'), fill="")+
+  facet_grid(~TimePeriod)+
+  ggthemes::theme_few(base_size = 16, base_family = "serif")+
+  theme(legend.position = c(0.17, 0.95), legend.background = element_rect(fill=alpha('white', 0)), legend.text = element_text(size=8), legend.key.size = unit(0.085, "inches"))+
+  scale_fill_grey(labels=c("Poikilothermic (0-6 days)", "Intermediate (7-8 days)", "Homeothermic (9+ days)"), start=0.2, end=0.8)
+
+library(cowplot)
+plot_grid(PanelA, PanelB,nrow=2, ncol=1, labels=c("a", "b"), label_size = 20, label_fontfamily = "serif")
+ggsave(filename='~/Masters Thesis Project/Long term trends paper/Plots for paper/Supplemental Predation plot.jpeg', width=5, height=6, units="in", device="jpeg")
 
