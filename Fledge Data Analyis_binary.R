@@ -193,12 +193,12 @@ ggsave(filename='~/Masters Thesis Project/BGRS symposium presentation/Fledging S
 
 PanelB <- ggplot(newdata_days, aes(x=Daysabove18, y=predicted))+
   geom_line(size=1, aes(group=TimePeriod))+
-  geom_ribbon(aes(ymin=ucl, ymax=lcl, fill=TimePeriod), alpha=0.2)+
+  geom_ribbon(aes(ymin=ucl, ymax=lcl, fill=TimePeriod), alpha=0.5)+
   labs(x="Days of good weather", y="Probability of \nFledging Success", fill="", color="Population \nStatus")+
   ggthemes::theme_few(base_size = 16, base_family = "serif")+
   theme(legend.position = c(0.85, 0.3), legend.background = element_rect(fill=alpha('white', 0)))+
   scale_x_continuous(breaks=c(1, 3, 5, 7, 9))+
-  scale_fill_grey(labels=c("Growing", "Declining", "Post-decline"), start=0.6, end=0.2)
+  scale_fill_manual(values=c("gray15", "gray40", "grey80"), labels=c("Growing", "Declining", "Post Decline"))
 PanelB
 
 #################################################################
@@ -244,7 +244,7 @@ ggsave(filename='~/Masters Thesis Project/BGRS symposium presentation/Weather th
 
   
 
-ViewPortB <- ggplot(YearSummary, aes(y=MeanDaysabove18, x=Year))+
+PanelC <- ggplot(YearSummary, aes(y=MeanDaysabove18, x=Year))+
   geom_point()+
   geom_smooth(method="lm", color="black")+
   labs(y="Mean days of \ngood weather", x="Year")+
@@ -255,7 +255,7 @@ ViewPortB <- ggplot(YearSummary, aes(y=MeanDaysabove18, x=Year))+
 library(cowplot)
 
 
-plot_grid(PanelA, PanelB,ViewPortB, nrow=3, ncol=1, labels=c("a", "b", "c"), label_size = 20, label_fontfamily = "serif")
+plot_grid(PanelA, PanelB,PanelC, nrow=3, ncol=1, labels=c("a", "b", "c"), label_size = 20, label_fontfamily = "serif")
 ggsave(filename='~/Masters Thesis Project/Long term trends paper/Plots for paper/Fledging plot.jpeg', width=5, height=9, units="in", device="jpeg")
 
 
