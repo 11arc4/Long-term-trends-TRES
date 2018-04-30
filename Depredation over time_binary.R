@@ -121,14 +121,15 @@ oddsRatSE <- get.or.se(mod_pred)
 
 
 
-ggplot(Pred, aes(y=as.numeric(Depredated), x=Year2*10+1975))+
-  labs(y="Predation Rate", x="Year")+
+PanelA <- ggplot(Pred, aes(y=as.numeric(Depredated), x=Year2*10+1975))+
+  labs(y="Predation rate", x="Year")+
   stat_smooth(method="glm", method.args = list(family=binomial(link="cauchit")), aes(group=TimePeriod), color="black")+
   geom_vline(xintercept = c(1991, 2014), linetype="dashed")+
   #geom_vline(xintercept = 1998, color="darkgreen", size=2)+ #In 1998, ratsnakes got  listed. 
   ggthemes::theme_few(base_size = 16, base_family = "serif")
-ggsave(filename='~/Masters Thesis Project/Long term trends paper/Plots for paper/Predation plot.jpeg', width=5, height=3, units="in", device="jpeg")
-#Predation rate was high and growing during the time period while the population
+#ggsave(filename='~/Masters Thesis Project/Long term trends paper/Plots for paper/Predation plot.jpeg', width=5, height=3, units="in", device="jpeg")
+
+Predation rate was high and growing during the time period while the population
 #was crashing. I feel pretty good with this model. It seems to match the data pretty well. 
 
 
@@ -265,7 +266,7 @@ oddsRatSE_days <- get.or.se(mam_pred20)
 #How does our best model for 20 vs 15 degrees compare?
 
 AICc(mam_pred15, mam_pred20)
-#They are almost exactly the same. 15 degrees is almost 20 times better so well go with that!!
+# 15 degrees is almost 20 times better so well go with that!!
 
 
 ggplot(Pred2, aes(x=PredDays20, y=PredDays15))+
@@ -278,23 +279,6 @@ cor(Pred2$PredDays15, Pred2$PredDays20)
 #Predation rates were much higher when the population was declining than when
 #the population wasn't growing. #Cosewic designates gray ratsnakes as threatened
 #in april 1998-- which is right after we see the population start declining.
-
-newdata_20 <- data.frame(PredDays20=rep(seq(4, 16, 1),3),
-                           TimePeriod=c(rep("Growing", 13), rep("Declining", 13), rep("PostDecline", 13)),
-                           predicted_logit=NA,
-                           predicted=NA, 
-                           se_logit=NA,
-                           ucl=NA, 
-                           lcl=NA)
-
-
-std <- qnorm(0.95 / 2 + 0.5)
-newdata_20$predicted_logit <- predict(mam_pred20, newdata_20, type="link", se=T)$fit
-newdata_20$se_logit <- predict(mam_pred20, newdata_20, type="link", se=T)$se
-newdata_20$lcl <- mam_pred20$family$linkinv(newdata_20$predicted_logit - std * newdata_20$se_logit)
-newdata_20$ucl <- mam_pred20$family$linkinv(newdata_20$predicted_logit + std * newdata_20$se_logit)
-newdata_20$predicted <- mam_pred20$family$linkinv(newdata_20$predicted_logit)  # Rescale to 0-1
-#Just FYI this works properly and matches what you would get with ggplots stat_smooth if it was able to do that. 
 
 ggplot(newdata_20, aes(x=PredDays20, y=predicted))+
   geom_line(size=1, aes(group=TimePeriod))+
@@ -325,15 +309,24 @@ newdata_15$ucl <- mam_pred20$family$linkinv(newdata_15$predicted_logit + std * n
 newdata_15$predicted <- mam_pred20$family$linkinv(newdata_15$predicted_logit)  # Rescale to 0-1
 #Just FYI this works properly and matches what you would get with ggplots stat_smooth if it was able to do that. 
 
-ggplot(newdata_15, aes(x=PredDays15, y=predicted))+
+PanelB <- ggplot(newdata_15, aes(x=PredDays15, y=predicted))+
   geom_line(size=1, aes(group=TimePeriod))+
   geom_ribbon(aes(ymin=lcl, ymax=ucl, fill=TimePeriod), alpha=0.4)+
-  labs(x="Days of suitable weather for snakes", y="Predation Rate", fill="Population \nStatus", color="Population \nStatus")+
-  ggthemes::theme_few(base_size = 20)+
-  theme(text = element_text(size=20), axis.title.y = element_text(angle=0, vjust=0.5))
-  scale_x_continuous(breaks=c(1, 3, 5, 7, 9))
+  labs(x="Days with active snakes", y="Predation rate", fill="")+
+  ggthemes::theme_few(base_size = 16, base_family = "serif")+
+  theme(legend.position = c(0.2, 0.8), legend.background = element_rect(fill=alpha('white', 0)))+
+  scale_fill_grey(labels=c("Growing", "Declining", "Post-decline"), start=0.2, end=0.8)
+PanelB  
 
 #Very very similar results both ways.
+
+library(cowplot)
+plot_grid(PanelA, PanelB, nrow=2, ncol=1, labels=c("a", "b"), label_size = 20, label_fontfamily = "serif")
+ggsave(filename='~/Masters Thesis Project/Long term trends paper/Plots for paper/Predation plots.jpeg', width=5, height=6, units="in", device="jpeg")
+
+
+
+
 
 
 
@@ -352,8 +345,13 @@ length(which(Pred2$PredDays15>=15))/nrow(Pred2)
 
 PredDaysSummary <- Pred2 %>% group_by(Year, TimePeriod, Year2)%>% summarise(MPredDays20 = mean(PredDays20), 
                                                                      MPredDays15 = mean(PredDays15), 
-                                                                     MBadDays15 = mean(BadDays15)
+                                                                     #MBadDays15 = mean(BadDays15)
                                                                     )
+ggplot(PredDaysSummary, aes(x=Year, y=MPredDays15))+
+  geom_point()+
+  geom_smooth(method="lm", formula=y~x, aes(group=TimePeriod))+
+  geom_smooth(method="loess")
+
 hist(PredDaysSummary$MBadDays15, breaks=10)
 
 Pred2$BadDays15 <- abs(Pred2$PredDays15-16)
