@@ -269,6 +269,7 @@ mam_PC <- coxph(Surv(time=Time1, time2=Time2, event=Status)~ PC1+TimePeriod + PC
 
 AICTable <- AICc(mam_max, mam_mean, mam_min, mam_rain, mam_PC)
 AICTable$Delta <- AICTable$AICc - min(AICTable$AICc)
+AICTable
 mam_max
 
 summary(mam_max)

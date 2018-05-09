@@ -283,7 +283,9 @@ mam_PC <- coxph(Surv(time=Time1, time2=Time2, event=Status)~ Age2+ PC1 + PC2, da
 
 #So which of our weather variables is the best predictor? 
 
-AICc(mam_maxtemp, mam_mintemp, mam_meantemp, mam_rain, mam_PC)
+AICcTable <- AICc(mam_maxtemp, mam_mintemp, mam_meantemp, mam_rain, mam_PC)
+AICcTable$delta <- AICcTable$AICc-min(AICcTable$AICc)
+AICcTable
 # Oh wow. Max temperature is actually better
 #than year and all that at predicting nest failure. This is fantastic and in
 #complete agreemment with the binary results.
