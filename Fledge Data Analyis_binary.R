@@ -74,6 +74,7 @@ AICc(nopredMod1, nopredMod2, nopredMod3, nopredMod4, nopredMod5) #Cauchit link i
 
 NoPred$TimePeriod<- factor(NoPred$TimePeriod, levels=c("Growing", "Declining", "PostDecline"))
 NoPred$TimePeriod<- factor(NoPred$TimePeriod, levels=c("Declining", "Growing", "PostDecline"))
+NoPred$TimePeriod<- factor(NoPred$TimePeriod, levels=c("PostDecline", "Declining", "Growing"))
 
 
 plot(nopredMod3)

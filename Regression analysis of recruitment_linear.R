@@ -362,10 +362,18 @@ ggsave(filename='~/Masters Thesis Project/Long term trends paper/Plots for paper
 
 
 
-ggplot(Survival3 %>% filter(Age !="Recruit"), aes(x=Year, y=Estimate*100))+
+PanelA <- ggplot(Survival %>% filter( Estimate<.9 & Age!="Recruit" & SE<0.2 & Year!=2016 ), aes(x=Year, y=Estimate*100))+
   geom_point()+
-  facet_grid(~Age, labeller=as_labeller(c(`Recruit`="Juvenile", `SYReturn`="One-year-old", `ASYReturn`= "Older")))+
+  facet_grid(~Age, labeller=as_labeller(c(`Recruit`="Juvenile", `SYReturn`="1yr-year-old female", `ASYReturn`= "Older female")))+
   labs(x="Year", y="Overwinter survival (%)")+
   ggthemes::theme_few(base_size = 16, base_family = "serif")
-ggsave(filename='~/Masters Thesis Project/Long term trends paper/Plots for paper/Supplemental Adult Overwinter Survival plot.jpeg', width=5, height=3, units="in", device="jpeg")
+
+#Other panels are from the regression analysese of SY and ASY
+ggdraw() +
+  draw_plot(PanelA, x = 0, y = .5, width = 1, height = .5) +
+  draw_plot(PanelB, x = 0, y = 0, width = .5, height = .5) +
+  draw_plot(PanelC, x = .5, y = 0, width = .5, height = .5) +
+  draw_plot_label(label = c("a", "b", "c"), size = 20,
+                  x = c(0, 0, 0.5), y = c(1, 0.5, 0.5), family="serif")
+ggsave(filename='~/Masters Thesis Project/Long term trends paper/Plots for paper/Supplemental Adult Overwinter Survival plot.jpeg', width=8, height=6, units="in", device="jpeg")
 

@@ -304,18 +304,20 @@ newdata_15 <- data.frame(PredDays15=rep(seq(12, 16, 1),3),
 std <- qnorm(0.95 / 2 + 0.5)
 newdata_15$predicted_logit <- predict(mam_pred15, newdata_15, type="link", se=T)$fit
 newdata_15$se_logit <- predict(mam_pred15, newdata_15, type="link", se=T)$se
-newdata_15$lcl <- mam_pred20$family$linkinv(newdata_15$predicted_logit - std * newdata_15$se_logit)
-newdata_15$ucl <- mam_pred20$family$linkinv(newdata_15$predicted_logit + std * newdata_15$se_logit)
-newdata_15$predicted <- mam_pred20$family$linkinv(newdata_15$predicted_logit)  # Rescale to 0-1
+newdata_15$lcl <- mam_pred15$family$linkinv(newdata_15$predicted_logit - std * newdata_15$se_logit)
+newdata_15$ucl <- mam_pred15$family$linkinv(newdata_15$predicted_logit + std * newdata_15$se_logit)
+newdata_15$predicted <- mam_pred15$family$linkinv(newdata_15$predicted_logit)  # Rescale to 0-1
 #Just FYI this works properly and matches what you would get with ggplots stat_smooth if it was able to do that. 
+newdata_15$TimePeriod <- factor(newdata_15$TimePeriod, levels=c("Growing", "Declining", "PostDecline"))
 
 PanelB <- ggplot(newdata_15, aes(x=PredDays15, y=predicted))+
-  geom_line(size=1, aes(group=TimePeriod))+
+  geom_line(size=1, aes(linetype=TimePeriod))+
   geom_ribbon(aes(ymin=lcl, ymax=ucl, fill=TimePeriod), alpha=0.4)+
-  labs(x="Days with active snakes", y="Predation rate", fill="")+
+  labs(x="Days with active snakes", y="Predation rate", fill="", linetype="")+
   ggthemes::theme_few(base_size = 16, base_family = "serif")+
   theme(legend.position = c(0.2, 0.8), legend.background = element_rect(fill=alpha('white', 0)))+
-  scale_fill_grey(labels=c("Growing", "Declining", "Post-decline"), start=0.2, end=0.8)
+  scale_fill_grey(labels=c(`Growing`="Growing", `Declining`="Declining", `PostDecline`="Post-decline"), start=0.2, end=0.8)+
+  scale_linetype_manual( values=c("solid", "dotdash", "dotted"), labels=c(`Growing`="Growing", `Declining`="Declining", `PostDecline`="Post-decline"))
 PanelB  
 
 #Very very similar results both ways.
