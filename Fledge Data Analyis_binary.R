@@ -63,6 +63,8 @@ summary(mod)
 #Let's remove the predation caused failures. 
 NoPred <- dat %>% filter( !is.na(Fledge2) & (FailureCause2!="PREDATION" |is.na(FailureCause2)) & !is.na(Daysabove18) )
 
+#write.csv(NoPred, "file:///C:/Users/11arc/Documents/Binary fledge success (no pred).csv", na="", row.names = F)
+
 
 nopredMod1 <- glm(Fledge2 ~ Year2*TimePeriod, family=binomial(link="logit"), data=NoPred)
 nopredMod2 <- glm(Fledge2 ~ Year2*TimePeriod, family=binomial(link="probit"), data=NoPred)
@@ -218,6 +220,8 @@ YearSummary$Year <- YearSummary$Year2*10+1975
 
 
 YearSummary$TimePeriod <- factor(YearSummary$TimePeriod, levels=c("Growing", "Declining", "PostDecline"))
+write.csv(YearSummary, "file:///C:/Users/11arc/Documents/Annual Summary of Days above 18.csv", na="", row.names = F)
+
 
 mod2 <- lm(MeanDaysabove18~Year2*TimePeriod, data=YearSummary)
 plot(mod2)
