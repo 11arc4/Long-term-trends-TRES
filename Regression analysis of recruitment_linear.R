@@ -299,14 +299,14 @@ PanelA <- ggplot(Survival3 %>% filter(Age=="Recruit"), aes(x=Year, y=Estimate*10
   geom_point()+
   stat_smooth(method="lm", color="black")+
   labs(x="Year", y="Juvenile survival \noverwinter (%)")+
-  ggthemes::theme_few(base_size = 16, base_family = "serif")
+ theme_classic(base_size = 16, base_family = "serif")
 PanelA
 
 
 PanelB <- ggplot(Survival2, aes(x=WinterENSO, y=Recruitment))+
   geom_point()+
   labs(y="Juvenile survival \noverwinter (%)", x="Mean ENSO (Dec-Mar)")+
-  ggthemes::theme_few(base_size = 16, base_family = "serif")+
+  theme_classic(base_size = 16, base_family = "serif")+
   geom_line(aes(x=WinterENSO, y=predict(mam_ENSO)))+
   geom_ribbon(aes(x=WinterENSO, ymin=predict(mam_ENSO)-1.96*predict(mam_ENSO,se=T)$se.fit, ymax=predict(mam_ENSO)+1.96*predict(mam_ENSO,se=T)$se.fit), alpha=0.2)+
   facet_grid(~TimePeriod)
@@ -315,7 +315,7 @@ PanelB
 PanelC <- ggplot(Survival2, aes(x=DaysAbove18_max, y=Recruitment))+
   geom_point()+
   labs(y="Juvenile survival \noverwinter (%)", x="Mean days of good \nweather post-fledging")+
-  ggthemes::theme_few(base_size = 16, base_family = "serif")+
+  theme_classic(base_size = 16, base_family = "serif")+
   stat_smooth(method="lm", color="black")+
   facet_grid(~TimePeriod)
 PanelC
@@ -376,4 +376,48 @@ ggdraw() +
   draw_plot_label(label = c("a", "b", "c"), size = 20,
                   x = c(0, 0, 0.5), y = c(1, 0.5, 0.5), family="serif")
 ggsave(filename='~/Masters Thesis Project/Long term trends paper/Plots for paper/Supplemental Adult Overwinter Survival plot.jpeg', width=8, height=6, units="in", device="jpeg")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#Plots for exit seminar!
+ggplot(Survival2, aes(x=DaysAbove18_max, y=Recruitment))+
+  geom_point()+
+  labs(y="Juvenile \nsurvival \noverwinter \n(%)", x="Mean days of good \nweather post-fledging")+
+  theme_classic(base_size = 16)+
+  theme(axis.title.y=element_text(angle=0, vjust=0.5))+
+  stat_smooth(method="lm", color="black")+
+  facet_grid(~TimePeriod)
+ggsave("~/Masters Thesis Project/Committee Meetings/Sept 4 2018 Defense/Juv survival with weather.jpeg", units="in", width=6.5, height=4)
+
+
+
+ggplot(YearlyFledge, aes(x=Year, y=28-DaysBelow18_max))+
+  geom_point()+
+  labs(x="Year", y="Mean days \nof good \nweather \npost-fledging")+
+  stat_smooth(method="lm", formula=y~x, color="black")+
+  theme_classic(base_size = 16, base_family = "serif")+
+  theme(axis.title.y=element_text(angle=0, vjust=0.5))
+ggsave("~/Masters Thesis Project/Committee Meetings/Sept 4 2018 Defense/PostFledging weather.jpeg", units="in", width=6.5, height=4)
+
+
+
+
+
 

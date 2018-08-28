@@ -126,13 +126,30 @@ PanelA <- ggplot(Pred, aes(y=as.numeric(Depredated), x=Year2*10+1975))+
   stat_smooth(method="glm", method.args = list(family=binomial(link="cauchit")), aes(group=TimePeriod), color="black")+
   geom_vline(xintercept = c(1991, 2014), linetype="dashed")+
   #geom_vline(xintercept = 1998, color="darkgreen", size=2)+ #In 1998, ratsnakes got  listed. 
-  ggthemes::theme_few(base_size = 16, base_family = "serif")
+  theme_classic(base_size = 16, base_family = "serif")
 #ggsave(filename='~/Masters Thesis Project/Long term trends paper/Plots for paper/Predation plot.jpeg', width=5, height=3, units="in", device="jpeg")
 
-Predation rate was high and growing during the time period while the population
+#Predation rate was high and growing during the time period while the population
 #was crashing. I feel pretty good with this model. It seems to match the data pretty well. 
 
 
+#Presentation
+ggplot(Pred, aes(y=as.numeric(Depredated), x=Year2*10+1975))+
+  labs(y="Predation \nrate", x="Year")+
+  stat_smooth(method="glm", method.args = list(family=binomial(link="cauchit")), aes(group=TimePeriod), color="black")+
+  geom_vline(xintercept = c(1991, 2014), linetype="dashed")+
+  #geom_vline(xintercept = 1998, color="darkgreen", size=2)+ #In 1998, ratsnakes got  listed. 
+  theme_classic(base_size = 20)+
+  theme(axis.title.y=element_text(angle=0, vjust=0.5)) 
+ggplot(Pred, aes(y=as.numeric(Depredated), x=Year2*10+1975))+
+  labs(y="Predation \nrate", x="Year")+
+  stat_smooth(method="glm", method.args = list(family=binomial(link="cauchit")), aes(group=TimePeriod), color="black")+
+  geom_vline(xintercept = c(1991, 2014), linetype="dashed")+
+  #geom_vline(xintercept = 1998, color="darkgreen", size=2)+ #In 1998, ratsnakes got  listed. 
+  theme_classic(base_size = 20)+
+  theme(axis.title.y=element_text(angle=0, vjust=0.5))+
+  geom_vline(xintercept=1998, color="red", size=2)
+ggsave(filename='~/Graduate Courses/Predation plot.jpeg', width=8, height=5, units="in", device="jpeg")
 
 #Question 2: Is predation somehow related to weather? I'm not really expecting
 #it to be at the binary level, but perhaps.

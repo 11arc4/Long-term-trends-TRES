@@ -22,7 +22,6 @@ Survival$Age <- factor(Survival$Age)
 #went into them, or we are at a boundary), or there is no environmental data
 Survival2 <- Survival %>% filter( Estimate<.9 & ((SE<0.2 & Age!="Recruit" ) |(SE<0.1 & Age=="Recruit")) & Year!=2016 & Year !=2011 )
 
-
 ggplot(Survival2, aes(x=Year, y=Estimate, color=Age))+
   geom_segment(aes(x=Year, xend=Year, y=Estimate-SE, yend=Estimate+SE, color=Age), alpha=0.6)+
   geom_point( )+
