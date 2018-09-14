@@ -124,12 +124,20 @@ PanelA <- ggplot(NoPred, aes(y=Fledge2, x=Year2*10+1975, group=TimePeriod))+
   stat_smooth(method="glm", method.args = list(family=binomial(link="cauchit")), color="black")+
   labs(y="Probability of \nFledging Success", x="Year")+
   geom_vline(xintercept = c(1991, 2013 ), linetype="dashed")+
-  ggthemes::theme_few(base_size = 16, base_family = "serif")+
+  theme_classic(base_size = 16, base_family = "serif")+
   scale_x_continuous(breaks=c(1980, 1991, 2002, 2013))
 
 
-
-
+PanelA_2 <- ggplot(NoPred, aes(y=Fledge2, x=Year2*10+1975, group=TimePeriod))+
+  ylim(0, 1)+
+  stat_smooth(method="glm", method.args = list(family=binomial(link="cauchit")), color="black")+
+  labs(y="Probability of \nFledging Success", x="Year")+
+  geom_vline(xintercept = c(1991, 2013 ), linetype="dashed")+
+  geom_count(shape=1)+
+  theme_classic(base_size = 16, base_family = "serif")+
+  scale_x_continuous(breaks=c(1980, 1991, 2002, 2013))+
+  theme(legend.position = c(0.1, 0.3), legend.background = element_rect(fill=alpha('white', 0)), legend.text = element_text(size=12), legend.key.size = unit(3,"mm"))
+  
 #Yes During the decline, fledge success was lower and declined
 
 #################################################################
@@ -195,14 +203,28 @@ ggsave(filename='~/Masters Thesis Project/BGRS symposium presentation/Fledging S
 
 
 PanelB <- ggplot(newdata_days, aes(x=Daysabove18, y=predicted))+
-  geom_line(size=1, aes(group=TimePeriod))+
+  geom_line(size=1, aes(group=TimePeriod, linetype=TimePeriod))+
   geom_ribbon(aes(ymin=ucl, ymax=lcl, fill=TimePeriod), alpha=0.5)+
-  labs(x="Days of good weather", y="Probability of \nFledging Success", fill="", color="Population \nStatus")+
-  ggthemes::theme_few(base_size = 16, base_family = "serif")+
+  labs(x="Days of good weather", y="Probability of \nFledging Success", fill="",linetype="", color="Population \nStatus")+
+  theme_classic(base_size = 16, base_family = "serif")+
   theme(legend.position = c(0.85, 0.3), legend.background = element_rect(fill=alpha('white', 0)))+
   scale_x_continuous(breaks=c(1, 3, 5, 7, 9))+
-  scale_fill_manual(values=c("gray15", "gray40", "grey80"), labels=c("Growing", "Declining", "Post Decline"))
+  scale_fill_manual(values=c("gray15", "gray40", "grey80"), labels=c("Growing", "Declining", "Post Decline"))+
+  scale_linetype_manual(values=c("solid", "dashed", "dotted"), labels=c("Growing", "Declining", "Post Decline"))
+
 PanelB
+
+PanelB_2 <- ggplot(newdata_days, aes(x=Daysabove18, y=predicted))+
+  geom_line(size=1)+
+  geom_ribbon(aes(ymin=ucl, ymax=lcl), alpha=0.5)+
+  labs(x="Days of good weather", y="Probability of \nFledging Success",  shape="Population \nStatus")+
+  theme_classic(base_size = 16, base_family = "serif")+
+  geom_count(data=NoPred, aes(x=Daysabove18, y=Fledge2), shape=1)+
+  theme(legend.position = c(0.85, 0.3), legend.background = element_rect(fill=alpha('white', 0)), legend.text = element_text(size=12), legend.key.size = unit(3,"mm"))+
+  scale_x_continuous(breaks=c(1, 3, 5, 7, 9))+
+  facet_grid(~TimePeriod)
+
+PanelB_2
 
 #################################################################
 #Are there fewer days above 18 during vulnerable periods for non-predated nests? 
@@ -253,7 +275,7 @@ PanelC <- ggplot(YearSummary, aes(y=MeanDaysabove18, x=Year))+
   geom_point()+
   geom_smooth(method="lm", color="black")+
   labs(y="Mean days of \ngood weather", x="Year")+
-  ggthemes::theme_few(base_size = 16, base_family = "serif")
+  theme_classic(base_size = 16, base_family = "serif")
 
 
 
@@ -261,12 +283,22 @@ library(cowplot)
 
 
 plot_grid(PanelA, PanelB,PanelC, nrow=3, ncol=1, labels=c("a", "b", "c"), label_size = 20, label_fontfamily = "serif")
-ggsave(filename='~/Masters Thesis Project/Long term trends paper/Plots for paper/Fledging plot.jpeg', width=5, height=9, units="in", device="jpeg")
+ggsave(filename='~/Masters Thesis Project/Long term trends paper/Plots for paper/PDF Figures/Figure 2.pdf', width=5, height=9, units="in", device="pdf")
+
+
+
+ggsave(filename='~/Masters Thesis Project/Long term trends paper/Plots for paper/Fledging plot.jpeg', width=3.5, height=8, units="in", device="jpeg")
 
 
 
 
 
+
+plot_grid(PanelA_2, PanelB_2, nrow=2, ncol=1, labels=c("a", "b"), label_size = 20, label_fontfamily = "serif")
+
+
+
+ggsave(filename='~/Masters Thesis Project/Long term trends paper/Plots for paper/Fledging plot with points.jpeg', width=4, height=6, units="in", device="jpeg")
 
 
 

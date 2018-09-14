@@ -164,7 +164,7 @@ PanelA <- ggplot(newdata, aes(x=Year2*10+1975, y=predicted, group=Age2))+
   geom_ribbon(aes(ymin=predicted-se, ymax=predicted+se, fill=Age2), alpha=0.6, data=newdata %>% filter(TimePeriod=="PostDecline") )+
   geom_vline(xintercept = c(1996.5, 2013.5 ))+
   labs(x="Year", y="Nest Failure Risk", fill="" )+ 
-  ggthemes::theme_few(base_size = 16, base_family = "serif")+
+  theme_classic(base_size = 16, base_family = "serif")+
   theme(legend.position = c(0.25, 0.85), legend.background = element_rect(fill=alpha('white', 0)), legend.text = element_text(size=10))+
   scale_fill_grey(labels=c("Poikilothermic (0-6 days)", "Intermediate (7-8 days)", "Homeothermic (9+ days)"), start=0.2, end=0.8)
   
@@ -306,12 +306,14 @@ PanelB <- ggplot(newdata2, aes(x=MaxTemp, y=predicted, group=Age2))+
   geom_line()+
   geom_ribbon(aes(ymin=predicted-se, ymax=predicted+se, fill=Age2), alpha=0.6)+
   labs(y="Nest Failure Risk", x=expression('Max Temperature ('*degree*C*')'), fill="", color="")+
-  ggthemes::theme_few(base_size = 16, base_family = "serif")+
+  theme_classic(base_size = 16, base_family = "serif")+
   theme(legend.position = c(0.75, 0.85), legend.background = element_rect(fill=alpha('white', 0)), legend.text = element_text(size=10))+
   scale_fill_grey(labels=c("Poikilothermic (0-6 days)", "Intermediate (7-8 days)", "Homeothermic (9+ days)"), start=0.2, end=0.8)
 
 library(cowplot)
 plot_grid(PanelA, PanelB,nrow=2, ncol=1, labels=c("a", "b"), label_size = 20, label_fontfamily = "serif")
+ggsave(filename='~/Masters Thesis Project/Long term trends paper/Plots for paper/PDF Figures/Figure S1.pdf', width=5, height=6, units="in", device="pdf")
+
 ggsave(filename='~/Masters Thesis Project/Long term trends paper/Plots for paper/Supplemental Fledging plot.jpeg', width=5, height=6, units="in", device="jpeg")
 
 

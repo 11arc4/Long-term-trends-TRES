@@ -131,6 +131,18 @@ PanelA <- ggplot(Pred, aes(y=as.numeric(Depredated), x=Year2*10+1975))+
 
 #Predation rate was high and growing during the time period while the population
 #was crashing. I feel pretty good with this model. It seems to match the data pretty well. 
+PanelA_2 <- ggplot(Pred, aes(y=as.numeric(Depredated), x=Year2*10+1975))+
+  labs(y="Predation rate", x="Year")+
+  stat_smooth(method="glm", method.args = list(family=binomial(link="cauchit")), aes(group=TimePeriod), color="black")+
+  geom_vline(xintercept = c(1991, 2014), linetype="dashed")+
+  geom_count(shape=1)+
+  #geom_vline(xintercept = 1998, color="darkgreen", size=2)+ #In 1998, ratsnakes got  listed. 
+  theme_classic(base_size = 16, base_family = "serif")+
+  theme(legend.position = c(0.1, 0.6), legend.background = element_rect(fill=alpha('white', 0)), legend.text = element_text(size=12), legend.key.size = unit(3,"mm"))
+
+
+
+
 
 
 #Presentation
@@ -331,19 +343,31 @@ PanelB <- ggplot(newdata_15, aes(x=PredDays15, y=predicted))+
   geom_line(size=1, aes(linetype=TimePeriod))+
   geom_ribbon(aes(ymin=lcl, ymax=ucl, fill=TimePeriod), alpha=0.4)+
   labs(x="Days with active snakes", y="Predation rate", fill="", linetype="")+
-  ggthemes::theme_few(base_size = 16, base_family = "serif")+
+  theme_classic(base_size = 16, base_family = "serif")+
   theme(legend.position = c(0.2, 0.8), legend.background = element_rect(fill=alpha('white', 0)))+
   scale_fill_grey(labels=c(`Growing`="Growing", `Declining`="Declining", `PostDecline`="Post-decline"), start=0.2, end=0.8)+
   scale_linetype_manual( values=c("solid", "dotdash", "dotted"), labels=c(`Growing`="Growing", `Declining`="Declining", `PostDecline`="Post-decline"))
 PanelB  
 
+PanelB_2 <- ggplot(newdata_15, aes(x=PredDays15, y=predicted))+
+  geom_line(size=1, aes())+
+  geom_ribbon(aes(ymin=lcl, ymax=ucl), alpha=0.4)+
+  labs(x="Days with active snakes", y="Predation rate", fill="", linetype="")+
+  theme_classic(base_size = 16, base_family = "serif")+
+  geom_count(data=Pred2, aes(x=PredDays15, y=Depredated), shape=1)+
+  theme(legend.position = c(0.1, 0.75), legend.background = element_rect(fill=alpha('white', 0)))+
+  facet_grid(~TimePeriod)
+PanelB_2  
+
 #Very very similar results both ways.
 
 library(cowplot)
 plot_grid(PanelA, PanelB, nrow=2, ncol=1, labels=c("a", "b"), label_size = 20, label_fontfamily = "serif")
-ggsave(filename='~/Masters Thesis Project/Long term trends paper/Plots for paper/Predation plots.jpeg', width=5, height=6, units="in", device="jpeg")
+ggsave(filename='~/Masters Thesis Project/Long term trends paper/Plots for paper/PDF Figures/Figure 3.pdf',  width=4, height=6, units="in", device="pdf")
 
 
+plot_grid(PanelA_2, PanelB_2, nrow=2, ncol=1, labels=c("a", "b"), label_size = 20, label_fontfamily = "serif")
+ggsave(filename='~/Masters Thesis Project/Long term trends paper/Plots for paper/Pred plot with points.jpeg',  width=5, height=6, units="in", device="jpeg")
 
 
 

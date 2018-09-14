@@ -24,10 +24,12 @@ BoxOccupancy$Year[breakpoints$breakpoints]
 ggplot(BoxOccupancy, aes(x=Year, y=100*BoxOccTotal))+
   geom_vline(xintercept=c(1991, 2013), linetype="dashed")+
   geom_smooth(method="lm", formula=y~x, aes(group=TimePeriod), fill="lightgrey", color="black")+
-  geom_point()+
+  geom_point(size=1)+
   labs(x="Year", y="Box Occupancy (%)")+
-  ggthemes::theme_few(base_size = 16, base_family = "serif")+
+  theme_classic(base_size = 16, base_family = "serif")+
   scale_x_continuous(breaks=c(1980, 1991, 2002, 2013))
+ggsave(filename='~/Masters Thesis Project/Long term trends paper/Plots for paper/PDF Figures/Figure 1.pdf', width=4.5, height=3, units="in", device="pdf")
+
 ggsave(filename='Box Occupancy Plot with breakpoints.jpeg', width=4.5, height=3, units="in", device="jpeg")
 
 
@@ -93,7 +95,7 @@ ggplot(BoxOccupancy, aes(x=Year, y=100*BoxOccTotal))+
   geom_smooth(method="lm", formula=y~x, aes(group=TimePeriod), fill="lightgrey", color="black")+
   geom_point()+
   labs(x="Year", y="Population Size \n(% box occupancy)")+
-  ggthemes::theme_few(base_size = 20)+
+  theme_classic(base_size = 20)+
   theme(axis.title.y=element_text(angle=0, vjust=0.5)) +
   scale_x_continuous(breaks=c(1980, 1991, 2002, 2013))
 ggsave(filename='~/Masters Thesis Project/BGRS symposium presentation/Box Occupancy Plot.jpeg', width=9, height=5, units="in", device="jpeg")

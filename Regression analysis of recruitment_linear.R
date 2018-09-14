@@ -327,13 +327,14 @@ PanelD <- ggplot(YearlyFledge, aes(x=Year, y=28-DaysBelow18_max))+
   geom_point()+
   labs(x="Year", y="Mean days of good \nweather post-fledging")+
   stat_smooth(method="lm", formula=y~x, color="black")+
-  ggthemes::theme_few(base_size = 16, base_family = "serif")
+  theme_classic(base_size = 16, base_family = "serif")
 PanelD
 
 
 library(cowplot)
 plot_grid(PanelA, PanelC, PanelB, PanelD, nrow=2, ncol=2, labels=c("a", "c", "b",  "d"), label_size = 20, label_fontfamily = "serif")
 ggsave(filename='~/Masters Thesis Project/Long term trends paper/Plots for paper/Juvenile survival plot.jpeg', width=8, height=6, units="in", device="jpeg")
+ggsave(filename='~/Masters Thesis Project/Long term trends paper/Plots for paper/PDF Figures/Figure 4.pdf', width=8, height=6, units="in", device="pdf")
 
 
 
