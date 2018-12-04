@@ -124,7 +124,7 @@ PanelA <- ggplot(NoPred, aes(y=Fledge2, x=Year2*10+1975, group=TimePeriod))+
   stat_smooth(method="glm", method.args = list(family=binomial(link="cauchit")), color="black")+
   labs(y="Probability of \nFledging Success", x="Year")+
   geom_vline(xintercept = c(1991, 2013 ), linetype="dashed")+
-  theme_classic(base_size = 16, base_family = "serif")+
+  theme_classic(base_size = 12, base_family = "serif")+
   scale_x_continuous(breaks=c(1980, 1991, 2002, 2013))
 
 
@@ -195,7 +195,7 @@ ggplot(newdata_days, aes(x=Daysabove18, y=predicted))+
   geom_line(size=1, aes(group=TimePeriod))+
   geom_ribbon(aes(ymin=lcl, ymax=ucl, fill=TimePeriod), alpha=0.2)+
   labs(x="Days of good weather \nduring early development", y="Fledging\nSuccess", fill="Population \nStatus", color="Population \nStatus")+
-  ggthemes::theme_few(base_size = 20)+
+  theme_classic(base_size = 20)+
   theme(text = element_text(size=20), axis.title.y = element_text(angle=0, vjust=0.5))+
   scale_x_continuous(breaks=c(1, 3, 5, 7, 9))+
   scale_fill_manual(values=c("forestgreen", "red2", "gold2"), labels=c("Growing", "Declining", "Post Decline"))
@@ -203,11 +203,11 @@ ggsave(filename='~/Masters Thesis Project/BGRS symposium presentation/Fledging S
 
 
 PanelB <- ggplot(newdata_days, aes(x=Daysabove18, y=predicted))+
-  geom_line(size=1, aes(group=TimePeriod, linetype=TimePeriod))+
   geom_ribbon(aes(ymin=ucl, ymax=lcl, fill=TimePeriod), alpha=0.5)+
+  geom_line(aes(group=TimePeriod, linetype=TimePeriod))+
   labs(x="Days of good weather", y="Probability of \nFledging Success", fill="",linetype="", color="Population \nStatus")+
-  theme_classic(base_size = 16, base_family = "serif")+
-  theme(legend.position = c(0.85, 0.3), legend.background = element_rect(fill=alpha('white', 0)))+
+  theme_classic(base_size = 12, base_family = "serif")+
+  theme(legend.position = c(0.85, 0.35), legend.background = element_rect(fill=alpha('white', 0)))+
   scale_x_continuous(breaks=c(1, 3, 5, 7, 9))+
   scale_fill_manual(values=c("gray15", "gray40", "grey80"), labels=c("Growing", "Declining", "Post Decline"))+
   scale_linetype_manual(values=c("solid", "dashed", "dotted"), labels=c("Growing", "Declining", "Post Decline"))
@@ -275,15 +275,15 @@ PanelC <- ggplot(YearSummary, aes(y=MeanDaysabove18, x=Year))+
   geom_point()+
   geom_smooth(method="lm", color="black")+
   labs(y="Mean days of \ngood weather", x="Year")+
-  theme_classic(base_size = 16, base_family = "serif")
+  theme_classic(base_size = 12, base_family = "serif")
 
 
 
 library(cowplot)
 
 
-plot_grid(PanelA, PanelB,PanelC, nrow=3, ncol=1, labels=c("a", "b", "c"), label_size = 20, label_fontfamily = "serif")
-ggsave(filename='~/Masters Thesis Project/Long term trends paper/Plots for paper/PDF Figures/Figure 2.pdf', width=5, height=9, units="in", device="pdf")
+plot_grid(PanelA, PanelB,PanelC, nrow=3, ncol=1, labels=c("a", "b", "c"), label_size = 17, label_fontfamily = "serif")
+ggsave(filename='~/Masters Thesis Project/Long term trends paper/Plots for paper/PDF Figures/Figure 2.jpeg', width=3.5, height=6, units="in", device="jpeg")
 
 
 
@@ -294,7 +294,7 @@ ggsave(filename='~/Masters Thesis Project/Long term trends paper/Plots for paper
 
 
 
-plot_grid(PanelA_2, PanelB_2, nrow=2, ncol=1, labels=c("a", "b"), label_size = 20, label_fontfamily = "serif")
+plot_grid(PanelA_2, PanelB_2, nrow=2, ncol=1, labels=c("a", "b"), label_size = 18, label_fontfamily = "serif")
 
 
 

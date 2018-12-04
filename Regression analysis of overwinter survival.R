@@ -9,13 +9,9 @@ library(MuMIn)
 Survival <- read.csv("file:///C:/Users/11arc/Documents/Masters Thesis Project/Long term trends paper/Data Files_long term trends/Yearly Survival Estimates.csv", na.strings="", as.is=T)
 
 
-Survival$TimePeriod <- NA
-Survival$TimePeriod[which(Survival$Year<1992)]<- "Growing"
-Survival$TimePeriod[which(Survival$Year>1991)]<- "Declining"
 #Only have 1 year post decline so let's definitel not group it off seperately!
 #Survival$TimePeriod[which(Survival$Year>2014)]<- "PostDecline"
-Survival$TimePeriod <- factor(Survival$TimePeriod, levels=c("Growing", "Declining"))
-Survival$Age <- factor(Survival$Age)
+Survival$TimePeriod <- factor(ifelse(Survival$Year<1992, "Growing", "Declining"), levels=c("Growing", "Declining"))
 
 
 #Remove the years and specific estimates that aren't any good (not enough birds

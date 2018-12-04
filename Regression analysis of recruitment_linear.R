@@ -57,8 +57,8 @@ Survival2$SugarAcreage <- NA
 #Match all of these parameters of interest up with the survival estimates. 
 for (i in 1:nrow(Survival2)){
   Year<- Survival2$Year[i]
-  Survival2$SugarAcreage[i] <- sugar$acreCaneSeed[Year==sugar$year]
-  Survival2$DaysBelow18_mean[i] <- YearlyFledge$DaysBelow18_mean [Year==YearlyFledge$Year]
+  #Survival2$SugarAcreage[i] <- sugar$acreCaneSeed[Year==sugar$year]
+  #Survival2$DaysBelow18_mean[i] <- YearlyFledge$DaysBelow18_mean [Year==YearlyFledge$Year]
   Survival2$DaysBelow18_max[i] <- YearlyFledge$DaysBelow18_max [Year==YearlyFledge$Year]
   Survival2$Hurricanes[i] <- hurricane$Hurricanes[Year==hurricane$Year]
   Survival2$WinterENSO[i] <- ENSOdat$ENSOWinter[Year==ENSOdat$Year]
@@ -299,14 +299,14 @@ PanelA <- ggplot(Survival3 %>% filter(Age=="Recruit"), aes(x=Year, y=Estimate*10
   geom_point()+
   stat_smooth(method="lm", color="black")+
   labs(x="Year", y="Juvenile survival \noverwinter (%)")+
- theme_classic(base_size = 16, base_family = "serif")
+ theme_classic(base_size = 12, base_family = "serif")
 PanelA
 
 
 PanelB <- ggplot(Survival2, aes(x=WinterENSO, y=Recruitment))+
   geom_point()+
   labs(y="Juvenile survival \noverwinter (%)", x="Mean ENSO (Dec-Mar)")+
-  theme_classic(base_size = 16, base_family = "serif")+
+  theme_classic(base_size = 12, base_family = "serif")+
   geom_line(aes(x=WinterENSO, y=predict(mam_ENSO)))+
   geom_ribbon(aes(x=WinterENSO, ymin=predict(mam_ENSO)-1.96*predict(mam_ENSO,se=T)$se.fit, ymax=predict(mam_ENSO)+1.96*predict(mam_ENSO,se=T)$se.fit), alpha=0.2)+
   facet_grid(~TimePeriod)
@@ -315,7 +315,7 @@ PanelB
 PanelC <- ggplot(Survival2, aes(x=DaysAbove18_max, y=Recruitment))+
   geom_point()+
   labs(y="Juvenile survival \noverwinter (%)", x="Mean days of good \nweather post-fledging")+
-  theme_classic(base_size = 16, base_family = "serif")+
+  theme_classic(base_size = 12, base_family = "serif")+
   stat_smooth(method="lm", color="black")+
   facet_grid(~TimePeriod)
 PanelC
@@ -327,14 +327,14 @@ PanelD <- ggplot(YearlyFledge, aes(x=Year, y=28-DaysBelow18_max))+
   geom_point()+
   labs(x="Year", y="Mean days of good \nweather post-fledging")+
   stat_smooth(method="lm", formula=y~x, color="black")+
-  theme_classic(base_size = 16, base_family = "serif")
+  theme_classic(base_size = 12, base_family = "serif")
 PanelD
 
 
 library(cowplot)
-plot_grid(PanelA, PanelC, PanelB, PanelD, nrow=2, ncol=2, labels=c("a", "c", "b",  "d"), label_size = 20, label_fontfamily = "serif")
+plot_grid(PanelA, PanelC, PanelB, PanelD, nrow=2, ncol=2, labels=c("a", "c", "b",  "d"), label_size = 17, label_fontfamily = "serif")
 ggsave(filename='~/Masters Thesis Project/Long term trends paper/Plots for paper/Juvenile survival plot.jpeg', width=8, height=6, units="in", device="jpeg")
-ggsave(filename='~/Masters Thesis Project/Long term trends paper/Plots for paper/PDF Figures/Figure 4.pdf', width=8, height=6, units="in", device="pdf")
+ggsave(filename='~/Masters Thesis Project/Long term trends paper/Plots for paper/PDF Figures/Figure 4.jpeg', width=8, height=6, units="in", device="jpeg")
 
 
 

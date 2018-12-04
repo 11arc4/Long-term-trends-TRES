@@ -24,20 +24,14 @@ BoxOccupancy$Year[breakpoints$breakpoints]
 ggplot(BoxOccupancy, aes(x=Year, y=100*BoxOccTotal))+
   geom_vline(xintercept=c(1991, 2013), linetype="dashed")+
   geom_smooth(method="lm", formula=y~x, aes(group=TimePeriod), fill="lightgrey", color="black")+
-  geom_point(size=1)+
+  geom_point(size=1, color="black")+
   labs(x="Year", y="Box Occupancy (%)")+
-  theme_classic(base_size = 16, base_family = "serif")+
+  theme_classic(base_size = 12, base_family = "serif")+
   scale_x_continuous(breaks=c(1980, 1991, 2002, 2013))
-ggsave(filename='~/Masters Thesis Project/Long term trends paper/Plots for paper/PDF Figures/Figure 1.pdf', width=4.5, height=3, units="in", device="pdf")
-
-ggsave(filename='Box Occupancy Plot with breakpoints.jpeg', width=4.5, height=3, units="in", device="jpeg")
+ggsave(filename='~/Masters Thesis Project/Long term trends paper/Plots for paper/PDF Figures/Figure 1.jpeg', width=3.5, height=2.7, units="in", device="jpeg")
 
 
 
-library(changepoint)
-#actually this won't work. Changepoints identifies periods wehre the mean was
-#different, or where the variance was different. We expect that the population
-#grew and then declined, therefore there shouldn't be distinct levels like this.
 
 
 

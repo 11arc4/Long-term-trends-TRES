@@ -126,7 +126,7 @@ PanelA <- ggplot(Pred, aes(y=as.numeric(Depredated), x=Year2*10+1975))+
   stat_smooth(method="glm", method.args = list(family=binomial(link="cauchit")), aes(group=TimePeriod), color="black")+
   geom_vline(xintercept = c(1991, 2014), linetype="dashed")+
   #geom_vline(xintercept = 1998, color="darkgreen", size=2)+ #In 1998, ratsnakes got  listed. 
-  theme_classic(base_size = 16, base_family = "serif")
+  theme_classic(base_size = 12, base_family = "serif")
 #ggsave(filename='~/Masters Thesis Project/Long term trends paper/Plots for paper/Predation plot.jpeg', width=5, height=3, units="in", device="jpeg")
 
 #Predation rate was high and growing during the time period while the population
@@ -343,7 +343,7 @@ PanelB <- ggplot(newdata_15, aes(x=PredDays15, y=predicted))+
   geom_line(size=1, aes(linetype=TimePeriod))+
   geom_ribbon(aes(ymin=lcl, ymax=ucl, fill=TimePeriod), alpha=0.4)+
   labs(x="Days with active snakes", y="Predation rate", fill="", linetype="")+
-  theme_classic(base_size = 16, base_family = "serif")+
+  theme_classic(base_size = 12, base_family = "serif")+
   theme(legend.position = c(0.2, 0.8), legend.background = element_rect(fill=alpha('white', 0)))+
   scale_fill_grey(labels=c(`Growing`="Growing", `Declining`="Declining", `PostDecline`="Post-decline"), start=0.2, end=0.8)+
   scale_linetype_manual( values=c("solid", "dotdash", "dotted"), labels=c(`Growing`="Growing", `Declining`="Declining", `PostDecline`="Post-decline"))
@@ -362,8 +362,8 @@ PanelB_2
 #Very very similar results both ways.
 
 library(cowplot)
-plot_grid(PanelA, PanelB, nrow=2, ncol=1, labels=c("a", "b"), label_size = 20, label_fontfamily = "serif")
-ggsave(filename='~/Masters Thesis Project/Long term trends paper/Plots for paper/PDF Figures/Figure 3.pdf',  width=4, height=6, units="in", device="pdf")
+plot_grid(PanelA, PanelB, nrow=2, ncol=1, labels=c("a", "b"), label_size = 17, label_fontfamily = "serif")
+ggsave(filename='~/Masters Thesis Project/Long term trends paper/Plots for paper/PDF Figures/Figure 3.jpeg',  width=3.5, height=4, units="in", device="jpeg")
 
 
 plot_grid(PanelA_2, PanelB_2, nrow=2, ncol=1, labels=c("a", "b"), label_size = 20, label_fontfamily = "serif")

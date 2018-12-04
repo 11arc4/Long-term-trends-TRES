@@ -22,7 +22,10 @@
 # data<- data[1:i, ]
 # write.csv(data, col.names = T, row.names = F, file="file:///C:/Users/11arc/Documents/Masters Thesis Project/Long term trends paper/Data Files_long term trends/Lay date data.csv")
 
-data2 <- data %>% group_by(Year) %>% summarise(MLayDate = mean(LayDate, na.rm=T))
+dat <- read.csv("file:///C:/Users/11arc/Documents/Masters Thesis Project/Long term trends paper/Data Files_long term trends/Lay date data.csv")
+
+
+data2 <- dat %>% group_by(Year) %>% summarise(MLayDate = mean(LayDate, na.rm=T))
 
 data2$TimePeriod <- "Growing"
 data2$TimePeriod[data2$Year>1991] <- "Declining"
